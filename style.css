@@ -1,0 +1,24 @@
+/* Define a reusable design */
+.special {
+    background: #ff6600;   /* orange */
+    color: white;
+    border-radius: 12px;
+    padding: 6px;
+    font-weight: bold;
+}
+.label {
+    background-color:bisque;
+    border: #ff6600 solid 2pt;
+    color: black;
+    font-size:20pt;
+}
+.scroll{
+    border:#ff6600 solid 2pt;
+    border-radius: 2%;
+    background-color: bisque;
+    color: black;
+}
+.logo {
+    min-width: 100px;
+    min-height: 100px;
+}

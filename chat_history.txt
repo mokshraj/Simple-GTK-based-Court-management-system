@@ -1,0 +1,47 @@
+Chat history
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+User: hello
+
+Bot: Hello! I am an AI chatbot designed to answer questions specifically about the Indian Judiciary System and the Court Management System project. How can I assist you today?
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+User: give me the index of research paper
+
+Bot: Here is the index of the research paper:
+
+**INDEX**
+
+S.NO TOPIC NAME
+1. Initial Research
+2. Abstract
+3. Introduction
+4. Literature Review
+5. Methodology / System Design
+6. Implementation (Judge and Lawyer Dashboards)
+7. Video Hearing
+8. Conclusion and Future Work
+9. References
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
