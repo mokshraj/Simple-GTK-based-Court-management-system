@@ -319,6 +319,9 @@ void activate(GtkApplication *app, gpointer user_data)
     check4 = gtk_button_new_with_label("Schedules");
     g_signal_connect(check4, "clicked",G_CALLBACK(gui_open_file),g_strdup("Schedule"));
     gtk_grid_attach(GTK_GRID(grid), check4, 0, 4, 2, 1);
+    check4 = gtk_button_new_with_label("AI Bot");
+    g_signal_connect(check4, "clicked",G_CALLBACK(open_python_file),g_strdup("newcahtbot.py"));
+    gtk_grid_attach(GTK_GRID(grid), check4, 0, 5, 2, 1);
     // Free login data when window is destroyed
     g_signal_connect_swapped(window, "destroy", G_CALLBACK(g_free), login);
 }
@@ -606,13 +609,15 @@ GtkWidget *Schedule_list(login_data *login,int *set_id,GtkWidget *casecontrol,GD
         return NULL;
     }
     char *sql;
+    char *useridint = g_strdup((login->user_id) + 2);
+    printf(" %s",useridint);
     if (login->type == 1) {
         sql = g_strdup_printf(
             "SELECT cs.case_id, ct.Name, cs.schedule_id "
             "FROM case_schedule cs "
             "INNER JOIN Crime_table ct ON cs.case_id = ct.Case_ID "
             "WHERE ct.Judge_ID = %s AND cs.date = %s;",
-            login->user_id, Date
+            useridint, Date
         );
     }
     else if (login->type == 2) {
@@ -621,7 +626,7 @@ GtkWidget *Schedule_list(login_data *login,int *set_id,GtkWidget *casecontrol,GD
             "FROM case_schedule cs "
             "INNER JOIN Crime_table ct ON cs.case_id = ct.Case_ID "
             "WHERE (ct.Lyr1_ID = %s OR ct.Lyr2_ID = %s) AND cs.date = %s;",
-            login->user_id, login->user_id, Date
+            useridint, useridint, Date
         );
     }
     else if (login->type == 3) {
@@ -661,6 +666,7 @@ GtkWidget *Schedule_list(login_data *login,int *set_id,GtkWidget *casecontrol,GD
     }
     g_free(Date);
     g_free(sql);
+    g_free(useridint);
     sqlite3_finalize(stmt);
     sqlite3_close(db);
     // Set the box as the scrolled window's child

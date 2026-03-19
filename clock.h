@@ -175,6 +175,11 @@ static void on_reset_clicked(GtkButton *button, gpointer user_data)
                            proceeding_time_str, 
                            break_time_str, 
                            *(data->schedule_id));
+        const char *sql_hearing = 
+        "UPDATE Crime_table "
+        "SET Total_Hearings = Total_Hearings + 1 "
+        "WHERE Case_ID = (SELECT Case_id FROM case_schedule WHERE schedule_id = %d);";
+        execute_sql_update(data,sql_hearing,*(data->schedule_id));
     }
     
     // Reset local timer state

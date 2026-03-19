@@ -202,33 +202,40 @@ static inline int Judge_login(const char *userid, const char *pass)
     }
 
     /* parameterized query — faster and safer */
-    const char *sql = "SELECT Password FROM Judge WHERE Judge_ID = ?1";
+    const char *sql = "SELECT Password,type FROM Judge WHERE Judge_ID = ?1 AND type = ?2";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "prepare failed: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         return 0;
     }
-
-    int user_id = atoi(userid);
-    int passwd = atoi(pass);
-
-    sqlite3_bind_int(stmt, 1, user_id);
+    char useridint[strlen(userid)];
+    int j = 0;
+    for(int i = 2;i < strlen(userid)+1 ; i++){
+        useridint[j] = userid[i];
+        j++;
+    }
+    char type[3]; type[0] = userid[0];type[1]=userid[1];type[2]='\0';
+    printf(" passint%s ",useridint);
+    sqlite3_bind_text(stmt, 1, useridint,-1,SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2,type,-1,SQLITE_TRANSIENT);
 
     int found = 0;
     rc = sqlite3_step(stmt);
     if (rc == SQLITE_ROW) {
-        int password = sqlite3_column_int(stmt, 0); /* column 0 is Password */
-        if (password == passwd) {
+        char* password = g_strdup(sqlite3_column_text(stmt, 0)); /* column 0 is Password */
+        if (strcmp(pass,password) == 0) {
             found = 1;
             printf("\nLogin successful!\n");
         }
-    } else if (rc == SQLITE_DONE) {
+        g_free(password);
+    } 
+    else if (rc == SQLITE_DONE){
         /* no row */
     } else {
         fprintf(stderr, "step error: %s\n", sqlite3_errmsg(db));
     }
-
+    
     sqlite3_finalize(stmt);
     sqlite3_close(db);
     return found;
@@ -238,42 +245,51 @@ static inline int Lawyer_login(const char *userid, const char *pass)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
-    int rc,prepare;
+    int rc;
     rc=sqlite3_open("Judgment.db",&db);
     if(rc!=SQLITE_OK)
     {
         printf("Database not responding !\n");
         return 0;
     }
-    const char *retrieve_data="SELECT Lyr_ID,Password from Lawyer";
-    prepare=sqlite3_prepare_v2(db,retrieve_data,-1,&stmt,NULL);
-    if(prepare!=SQLITE_OK)
-    {
-        printf("Server problem !\n");
+    const char *sql="SELECT Password,type from Lawyer WHERE Lyr_ID = ?1 AND type = ?2";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "prepare failed: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
         return 0;
     }
 
-   int user_id,passwd,data,found=0;
-   user_id = atoi(userid);
-   passwd = atoi(pass);
-    while((data=sqlite3_step(stmt))==SQLITE_ROW)
-    {
-        int lawyer_id=sqlite3_column_int(stmt,0);
-        int password=sqlite3_column_int(stmt,1);
-        if(lawyer_id==user_id && password==passwd)
-        {
-          printf("\nLogin successfull !\n");
-          found=1;
-          return 1;
+    char useridint[strlen(userid)];
+    int j = 0;
+    for(int i = 2;i < strlen(userid)+1 ; i++){
+        useridint[j] = userid[i];
+        j++;
+    }
+    char type[3]; type[0] = userid[0];type[1]=userid[1];type[2]='\0';
+    printf(" passint%s ",useridint);
+    sqlite3_bind_text(stmt, 1, useridint,-1,SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2,type,-1,SQLITE_TRANSIENT);
+
+    int found = 0;
+    rc = sqlite3_step(stmt);
+    if (rc == SQLITE_ROW) {
+        char* password = g_strdup(sqlite3_column_text(stmt, 0)); /* column 0 is Password */
+        if (strcmp(pass,password) == 0) {
+            found = 1;
+            printf("\nLogin successful!\n");
         }
+        g_free(password);
+    } 
+    else if (rc == SQLITE_DONE){
+        /* no row */
+    } else {
+        fprintf(stderr, "step error: %s\n", sqlite3_errmsg(db));
     }
-    if(!found)
-    {
-      printf("Either User_id , password invalid or may this account not exist !\n");
-    }
+    
     sqlite3_finalize(stmt);
     sqlite3_close(db);
-    return 0;
+    return found;
 }
 
 static inline int Citizen_login(const char *userid, const char *pass)

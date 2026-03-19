@@ -45,3 +45,23 @@ How can I help you today?
 Bot: Hello! I am your Indian Judiciary Assistant.
 How can I help you today?
 
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
+User: sgdfg;mjg
+
+Bot: Error 403: {
+  "error": {
+    "code": 403,
+    "message": "Your API key was reported as leaked. Please use another API key.",
+    "status": "PERMISSION_DENIED"
+  }
+}
+
+
+Bot: Hello! I am your Indian Judiciary Assistant.
+How can I help you today?
+
