@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Court Schedule</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<header>
+    <h2 onclick="goBack()" style="cursor:pointer;">⬅ Court Schedule</h2>
+    <p>Search and view all hearings</p>
+</header>
+
+<section class="box">
+
+    <h2>All Schedules</h2>
+
+    <!-- SEARCH CONTROLS -->
+    <div class="filters">
+
+        <input type="text" id="searchInput" placeholder="Search Case / Name / ID">
+
+        <input type="date" id="dateFilter">
+
+        <button onclick="filterTable()">Search</button>
+
+    </div>
+
+    <!-- TABLE -->
+    <table id="scheduleTable">
+        <tr>
+            <th>Time</th>
+            <th>Case ID</th>
+            <th>Case</th>
+            <th>Petitioner</th>
+            <th>Respondent</th>
+            <th>Room</th>
+            <th>Type</th>
+            <th>Date</th>
+        </tr>
+
+        <tr>
+            <td>02:00 PM</td>
+            <td>FAM/2024/003456</td>
+            <td>Divorce Petition</td>
+            <td>Priya Singh</td>
+            <td>Vikram Singh</td>
+            <td>Room 7</td>
+            <td>Family</td>
+            <td>2026-03-19</td>
+        </tr>
+
+        <tr>
+            <td>03:30 PM</td>
+            <td>CRL/2024/007890</td>
+            <td>Fraud Investigation</td>
+            <td>CBI</td>
+            <td>Suresh Agarwal</td>
+            <td>Room 2</td>
+            <td>Criminal</td>
+            <td>2026-03-19</td>
+        </tr>
+
+        <tr>
+            <td>10:00 AM</td>
+            <td>CRL/2024/001234</td>
+            <td>Theft Case</td>
+            <td>State of Delhi</td>
+            <td>Rajesh Kumar</td>
+            <td>Room 5</td>
+            <td>Criminal</td>
+            <td>2026-03-18</td>
+        </tr>
+
+    </table>
+
+</section>
+
+<script>
+
+function goBack() {
+    window.location.href = "index.html";
+}
+
+function filterTable() {
+    let input = document.getElementById("searchInput").value.toLowerCase();
+    let date = document.getElementById("dateFilter").value;
+
+    let rows = document.querySelectorAll("#scheduleTable tr");
+
+    for (let i = 1; i < rows.length; i++) {
+        let text = rows[i].innerText.toLowerCase();
+        let rowDate = rows[i].cells[7].innerText;
+
+        let matchText = text.includes(input);
+        let matchDate = date === "" || rowDate === date;
+
+        if (matchText && matchDate) {
+            rows[i].style.display = "";
+        } else {
+            rows[i].style.display = "none";
+        }
+    }
+}
+
+</script>
+
+</body>
+</html>

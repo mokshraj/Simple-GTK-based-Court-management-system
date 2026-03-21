@@ -30,7 +30,7 @@ GdkRectangle GetMonitorSize(GtkWidget *window){
 static void on_click(GtkWidget *button, gpointer data){
     GtkWidget *dialog = gtk_window_new();
     gtk_window_set_child(GTK_WINDOW(dialog),file_select_window(NULL,g_file_new_for_path(get_executable_folder())));
-    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    //gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
     gtk_window_set_transient_for(GTK_WINDOW(dialog),GTK_WINDOW(gtk_widget_get_root(button)));
     GdkRectangle moniter = GetMonitorSize(GTK_WIDGET(gtk_widget_get_root(button)));
     gtk_window_present(GTK_WINDOW(dialog));

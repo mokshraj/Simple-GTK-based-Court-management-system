@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lawyer Directory</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<header>
+    <h2 onclick="goBack()" style="cursor:pointer;">⬅ Lawyer Directory</h2>
+    <p>Browse lawyers by category and ranking</p>
+</header>
+
+<section class="box">
+
+    <h2>Find Expert Lawyers</h2>
+
+    <!-- FILTER -->
+    <div class="filters">
+        <select id="categoryFilter">
+            <option value="">All</option>
+            <option value="Criminal">Criminal</option>
+            <option value="Civil">Civil</option>
+            <option value="Family">Family</option>
+            <option value="Corporate">Corporate</option>
+            <option value="Tax">Tax</option>
+            <option value="Labor">Labor</option>
+        </select>
+
+        <input type="text" id="searchLawyer" placeholder="Search name or specialization">
+
+        <button onclick="filterLawyers()">Search</button>
+    </div>
+
+    <!-- TABLE -->
+    <table id="lawyerTable">
+        <tr>
+            <th>Rank</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Experience</th>
+            <th>Win Rate</th>
+            <th>Total Cases</th>
+            <th>Cases Won</th>
+            <th>Rating</th>
+            <th>Location</th>
+            <th>Specialization</th>
+        </tr>
+
+        <tr>
+            <td>1</td>
+            <td>Adv. Meera Krishnan</td>
+            <td>Civil</td>
+            <td>18 yrs</td>
+            <td>87.5%</td>
+            <td>320</td>
+            <td>280</td>
+            <td>4.9</td>
+            <td>Supreme Court</td>
+            <td>Property, Contracts</td>
+        </tr>
+
+        <tr>
+            <td>2</td>
+            <td>Adv. Vikram Singh</td>
+            <td>Corporate</td>
+            <td>11 yrs</td>
+            <td>86.2%</td>
+            <td>195</td>
+            <td>168</td>
+            <td>4.8</td>
+            <td>Delhi High Court</td>
+            <td>Business Law</td>
+        </tr>
+
+        <tr>
+            <td>3</td>
+            <td>Adv. Priya Sharma</td>
+            <td>Family</td>
+            <td>9 yrs</td>
+            <td>82%</td>
+            <td>150</td>
+            <td>123</td>
+            <td>4.6</td>
+            <td>District Court</td>
+            <td>Divorce, Custody</td>
+        </tr>
+
+    </table>
+
+</section>
+
+<script>
+
+function goBack() {
+    window.location.href = "index.html";
+}
+
+function filterLawyers() {
+    let category = document.getElementById("categoryFilter").value.toLowerCase();
+    let search = document.getElementById("searchLawyer").value.toLowerCase();
+
+    let rows = document.querySelectorAll("#lawyerTable tr");
+
+    for (let i = 1; i < rows.length; i++) {
+
+        let text = rows[i].innerText.toLowerCase();
+        let rowCategory = rows[i].cells[2].innerText.toLowerCase();
+
+        let matchCategory = category === "" || rowCategory === category;
+        let matchSearch = text.includes(search);
+
+        if (matchCategory && matchSearch) {
+            rows[i].style.display = "";
+        } else {
+            rows[i].style.display = "none";
+        }
+    }
+}
+
+</script>
+
+</body>
+</html>
