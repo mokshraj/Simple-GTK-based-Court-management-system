@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>All Cases</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
+    <script src="db.js"></script>
+
+<header>
+    <h2 onclick="window.location.href='index.html'" style="cursor:pointer;">⬅ All Cases</h2>
+    <p>View all registered cases and their current status</p>
+</header>
+
+<section class="box">
+
+    <h2>Case Registry</h2>
+
+    <div class="filters">
+        <input type="text" id="searchInput" placeholder="Search case name / FIR / type" oninput="renderTable()">
+
+        <select id="typeFilter" onchange="renderTable()">
+            <option value="">All Types</option>
+            <!-- Populated from DB -->
+        </select>
+
+        <select id="verdictFilter" onchange="renderTable()">
+            <option value="">All Verdicts</option>
+            <option value="pending">Pending</option>
+            <option value="given">Verdict Given</option>
+        </select>
+
+        <button onclick="renderTable()">🔍 Search</button>
+        <button onclick="resetFilters()">↺ Reset</button>
+    </div>
+
+    <div id="dbStatus" style="color:#888; font-size:13px; margin-top:8px;"></div>
+
+    <table id="caseTable">
+        <thead>
+        <tr>
+            <th>FIR #</th>
+            <th>Case Name</th>
+            <th>Type</th>
+            <th>Judge</th>
+            <th>Lawyer 1</th>
+            <th>Lawyer 2</th>
+            <th>Crime Date</th>
+            <th>Hearings</th>
+            <th>Verdict</th>
+            <th>Status</th>
+        </tr>
+        </thead>
+        <tbody id="caseBody">
+            <tr><td colspan="10">⏳ Loading from database...</td></tr>
+        </tbody>
+    </table>
+
+</section>
+
+<script>
+let allCases = [];
+let db = null;
+
+(async () => {
+    try {
+        db = await initDB();
+        document.getElementById("dbStatus").textContent = "✅ Database connected, loading cases...";
+
+        // Populate type filter from DB
+        const cats = dbQuery(db, `SELECT key, name FROM Categories ORDER BY name`);
+        const typeSel = document.getElementById("typeFilter");
+        cats.forEach(c => {
+            const opt = document.createElement("option");
+            opt.value = c.key;
+            opt.textContent = c.name;
+            typeSel.appendChild(opt);
+        });
+
+        allCases = dbQuery(db, `
+            SELECT
+                ct.FIR_Number,
+                ct.Name       AS case_name,
+                ct.type       AS type_key,
+                cat.name      AS type_name,
+                ct.Crime_date,
+                ct.Total_Hearings,
+                ct.Verdict,
+                ct.status,
+                ct.Punishment,
+                ct.court_level,
+                j.Name        AS judge_name,
+                l1.Name       AS lawyer1,
+                l2.Name       AS lawyer2
+            FROM Crime_table ct
+            LEFT JOIN Categories cat ON ct.type = cat.key
+            LEFT JOIN Judge j        ON ct.Judge_ID = j.Judge_ID
+            LEFT JOIN Lawyer l1      ON ct.Lyr1_ID  = l1.Lyr_ID
+            LEFT JOIN Lawyer l2      ON ct.Lyr2_ID  = l2.Lyr_ID
+            ORDER BY ct.FIR_Number ASC
+        `);
+
+        document.getElementById("dbStatus").textContent =
+            `✅ Loaded ${allCases.length} cases from database`;
+
+        renderTable();
+
+    } catch(e) {
+        document.getElementById("caseBody").innerHTML =
+            `<tr><td colspan="10" style="color:red">⚠ DB Error: ${e.message}</td></tr>`;
+        document.getElementById("dbStatus").textContent = `❌ Error: ${e.message}`;
+        console.error(e);
+    }
+})();
+
+function renderTable() {
+    const search  = document.getElementById("searchInput").value.toLowerCase();
+    const type    = document.getElementById("typeFilter").value;
+    const verdict = document.getElementById("verdictFilter").value;
+
+    const filtered = allCases.filter(c => {
+        const text = [c.case_name, c.FIR_Number, c.type_key, c.type_name, c.judge_name]
+            .join(" ").toLowerCase();
+        const matchSearch  = !search  || text.includes(search);
+        const matchType    = !type    || c.type_key === type;
+        const matchVerdict = !verdict
+            || (verdict === "pending" && !c.Verdict)
+            || (verdict === "given"   && c.Verdict);
+        return matchSearch && matchType && matchVerdict;
+    });
+
+    const tbody = document.getElementById("caseBody");
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10">No cases found matching your filters.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(c => {
+        const verdictBadge = c.Verdict
+            ? `<span class="badge badge-green">${c.Verdict}</span>`
+            : `<span class="badge badge-blue">Pending</span>`;
+
+        return `
+        <tr>
+            <td>${c.FIR_Number}</td>
+            <td>${c.case_name}</td>
+            <td>${c.type_name || c.type_key || "—"}</td>
+            <td>${c.judge_name || "—"}</td>
+            <td>${c.lawyer1 || "—"}</td>
+            <td>${c.lawyer2 || "—"}</td>
+            <td>${c.Crime_date || "—"}</td>
+            <td>${c.Total_Hearings}</td>
+            <td>${verdictBadge}</td>
+            <td>${c.status || "Active"}</td>
+        </tr>`;
+    }).join("");
+}
+
+function resetFilters() {
+    document.getElementById("searchInput").value = "";
+    document.getElementById("typeFilter").value = "";
+    document.getElementById("verdictFilter").value = "";
+    renderTable();
+}
+</script>
+
+</body>
+</html>

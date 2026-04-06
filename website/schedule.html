@@ -7,105 +7,176 @@
 </head>
 
 <body>
+    <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
+    <script src="db.js"></script>
+    
+    <header>
+        <h2 onclick="goBack()" style="cursor:pointer;">⬅ Court Schedule</h2>
+        <p>Search and view all hearings</p>
+    </header>
 
-<header>
-    <h2 onclick="goBack()" style="cursor:pointer;">⬅ Court Schedule</h2>
-    <p>Search and view all hearings</p>
-</header>
+    <section class="box">
 
-<section class="box">
+        <h2>All Schedules</h2>
+        <div id="db-status" class="db-badge loading">⏳ Loading database...</div>
 
-    <h2>All Schedules</h2>
+        <!-- SEARCH CONTROLS -->
+        <div class="filters">
+            <input type="text" id="searchInput" placeholder="Search Case / Name / ID" oninput="filterTable()">
+            <input type="date" id="dateFilter" onchange="filterTable()">
+            <select id="statusFilter" onchange="filterTable()">
+                <option value="">All Statuses</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Completed">Completed</option>
+            </select>
+            <button onclick="filterTable()">Search</button>
+            <button onclick="resetFilters()" style="background:#eee;">Reset</button>
+        </div>
 
-    <!-- SEARCH CONTROLS -->
-    <div class="filters">
+        <!-- TABLE -->
+        <table id="scheduleTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Case ID</th>
+                    <th>Case Name</th>
+                    <th>Date</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Status</th>
+                    <th>Judge</th>
+                    <th>Lawyer 1</th>
+                    <th>Lawyer 2</th>
+                    <th>Clerk</th>
+                    <th>Courtroom</th>
+                    <th>Video Link</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody">
+                <tr><td colspan="13" style="color:#888;">Loading schedule from database...</td></tr>
+            </tbody>
+        </table>
 
-        <input type="text" id="searchInput" placeholder="Search Case / Name / ID">
+        <div id="recordCount" style="margin-top:10px; font-size:13px; color:#555;"></div>
 
-        <input type="date" id="dateFilter">
+    </section>
 
-        <button onclick="filterTable()">Search</button>
+    <script>
+    let allSchedules = [];
+    let db = null;
 
-    </div>
+    function goBack() { window.location.href = "index.html"; }
 
-    <!-- TABLE -->
-    <table id="scheduleTable">
-        <tr>
-            <th>Time</th>
-            <th>Case ID</th>
-            <th>Case</th>
-            <th>Petitioner</th>
-            <th>Respondent</th>
-            <th>Room</th>
-            <th>Type</th>
-            <th>Date</th>
-        </tr>
+    initDB().then(database => {
+        db = database;
+        document.getElementById('db-status').textContent = '✅ Database connected';
+        document.getElementById('db-status').className = 'db-badge connected';
 
-        <tr>
-            <td>02:00 PM</td>
-            <td>FAM/2024/003456</td>
-            <td>Divorce Petition</td>
-            <td>Priya Singh</td>
-            <td>Vikram Singh</td>
-            <td>Room 7</td>
-            <td>Family</td>
-            <td>2026-03-19</td>
-        </tr>
+        // Full JOIN: schedule + case + judge + lawyers + clerk
+        allSchedules = dbQuery(db, `
+            SELECT
+                cs.schedule_id,
+                cs.Case_id,
+                ct.Name        AS CaseName,
+                ct.type        AS CaseType,
+                cs.date,
+                cs.start_time,
+                cs.end_time,
+                cs.status,
+                cs.courtroom_no,
+                cs.Video_id,
+                cs.Proceding_time,
+                cs.Break_time,
+                j.Name         AS JudgeName,
+                l1.Name        AS Lawyer1Name,
+                l2.Name        AS Lawyer2Name,
+                cl.Name        AS ClerkName
+            FROM case_schedule cs
+            LEFT JOIN Crime_table   ct ON cs.Case_id  = ct.Case_ID
+            LEFT JOIN Judge          j ON ct.Judge_ID  = j.Judge_ID
+            LEFT JOIN Lawyer        l1 ON ct.Lyr1_ID   = l1.Lyr_ID
+            LEFT JOIN Lawyer        l2 ON ct.Lyr2_ID   = l2.Lyr_ID
+            LEFT JOIN clerk         cl ON cs.clerk_id  = cl.User_ID
+            ORDER BY cs.date DESC, cs.start_time DESC
+        `);
 
-        <tr>
-            <td>03:30 PM</td>
-            <td>CRL/2024/007890</td>
-            <td>Fraud Investigation</td>
-            <td>CBI</td>
-            <td>Suresh Agarwal</td>
-            <td>Room 2</td>
-            <td>Criminal</td>
-            <td>2026-03-19</td>
-        </tr>
+        renderTable(allSchedules);
 
-        <tr>
-            <td>10:00 AM</td>
-            <td>CRL/2024/001234</td>
-            <td>Theft Case</td>
-            <td>State of Delhi</td>
-            <td>Rajesh Kumar</td>
-            <td>Room 5</td>
-            <td>Criminal</td>
-            <td>2026-03-18</td>
-        </tr>
+    }).catch(err => {
+        document.getElementById('db-status').textContent = '❌ DB Error: ' + err.message;
+        document.getElementById('db-status').className = 'db-badge error';
+        console.error(err);
+    });
 
-    </table>
-
-</section>
-
-<script>
-
-function goBack() {
-    window.location.href = "index.html";
-}
-
-function filterTable() {
-    let input = document.getElementById("searchInput").value.toLowerCase();
-    let date = document.getElementById("dateFilter").value;
-
-    let rows = document.querySelectorAll("#scheduleTable tr");
-
-    for (let i = 1; i < rows.length; i++) {
-        let text = rows[i].innerText.toLowerCase();
-        let rowDate = rows[i].cells[7].innerText;
-
-        let matchText = text.includes(input);
-        let matchDate = date === "" || rowDate === date;
-
-        if (matchText && matchDate) {
-            rows[i].style.display = "";
-        } else {
-            rows[i].style.display = "none";
+    function renderTable(rows) {
+        const tbody = document.getElementById('scheduleBody');
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="13" style="color:#888;">No schedules found.</td></tr>';
+            document.getElementById('recordCount').textContent = '';
+            return;
         }
+
+        tbody.innerHTML = rows.map((r, i) => {
+            const statusClass = r.status === 'Completed' ? 'badge-green' : 'badge-blue';
+            const videoCell   = r.Video_id
+                ? `<a href="${r.Video_id}" target="_blank" style="color:#0066cc;">🔗 Join</a>`
+                : '—';
+            const caseId     = r.Case_id  || '—';
+            const caseName   = r.CaseName || '—';
+            const judge      = r.JudgeName  ? 'Hon. ' + r.JudgeName  : '—';
+            const lyr1       = r.Lawyer1Name || '—';
+            const lyr2       = r.Lawyer2Name || '—';
+            const clerk      = r.ClerkName  || '—';
+            const room       = r.courtroom_no || '—';
+            const endTime    = r.end_time || '—';
+
+            return `<tr>
+                <td>${i + 1}</td>
+                <td>${caseId}</td>
+                <td>${caseName}</td>
+                <td>${r.date}</td>
+                <td>${r.start_time}</td>
+                <td>${endTime}</td>
+                <td><span class="badge ${statusClass}">${r.status || '—'}</span></td>
+                <td>${judge}</td>
+                <td>${lyr1}</td>
+                <td>${lyr2}</td>
+                <td>${clerk}</td>
+                <td>${room}</td>
+                <td>${videoCell}</td>
+            </tr>`;
+        }).join('');
+
+        document.getElementById('recordCount').textContent =
+            `Showing ${rows.length} hearing${rows.length !== 1 ? 's' : ''}`;
     }
-}
 
-</script>
+    function filterTable() {
+        const text   = document.getElementById('searchInput').value.toLowerCase();
+        const date   = document.getElementById('dateFilter').value;
+        const status = document.getElementById('statusFilter').value.toLowerCase();
 
+        const filtered = allSchedules.filter(r => {
+            const blob = [
+                r.Case_id, r.CaseName, r.JudgeName,
+                r.Lawyer1Name, r.Lawyer2Name, r.ClerkName
+            ].join(' ').toLowerCase();
+
+            const matchText   = !text   || blob.includes(text);
+            const matchDate   = !date   || r.date === date;
+            const matchStatus = !status || (r.status || '').toLowerCase() === status;
+            return matchText && matchDate && matchStatus;
+        });
+
+        renderTable(filtered);
+    }
+
+    function resetFilters() {
+        document.getElementById('searchInput').value  = '';
+        document.getElementById('dateFilter').value   = '';
+        document.getElementById('statusFilter').value = '';
+        renderTable(allSchedules);
+    }
+    </script>
 </body>
 </html>

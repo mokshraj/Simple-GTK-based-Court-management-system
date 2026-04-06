@@ -7,6 +7,8 @@
 </head>
 
 <body>
+    <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
+    <script src="db.js"></script>
 
 <header>
     <h2 onclick="goBack()" style="cursor:pointer;">⬅ Lawyer Directory</h2>
@@ -16,111 +18,158 @@
 <section class="box">
 
     <h2>Find Expert Lawyers</h2>
+    <div id="db-status" class="db-badge loading">⏳ Loading database...</div>
 
     <!-- FILTER -->
     <div class="filters">
         <select id="categoryFilter">
-            <option value="">All</option>
-            <option value="Criminal">Criminal</option>
-            <option value="Civil">Civil</option>
-            <option value="Family">Family</option>
-            <option value="Corporate">Corporate</option>
-            <option value="Tax">Tax</option>
-            <option value="Labor">Labor</option>
+            <option value="">All Categories</option>
+            <!-- Populated dynamically from Categories table -->
         </select>
 
-        <input type="text" id="searchLawyer" placeholder="Search name or specialization">
+        <select id="courtFilter">
+            <option value="">All Courts</option>
+            <option value="Supreme Court">Supreme Court</option>
+            <option value="High Court">High Court</option>
+            <option value="District Court">District Court</option>
+        </select>
 
+        <input type="text" id="searchLawyer" placeholder="Search name or specialization" oninput="filterLawyers()">
         <button onclick="filterLawyers()">Search</button>
+        <button onclick="resetFilters()" style="background:#eee;">Reset</button>
     </div>
 
     <!-- TABLE -->
-    <table id="lawyerTable">
-        <tr>
-            <th>Rank</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Experience</th>
-            <th>Win Rate</th>
-            <th>Total Cases</th>
-            <th>Cases Won</th>
-            <th>Rating</th>
-            <th>Location</th>
-            <th>Specialization</th>
-        </tr>
+    <div id="tableWrapper">
+        <table id="lawyerTable">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Experience</th>
+                    <th>Total Cases</th>
+                    <th>Cases Won</th>
+                    <th>Win Rate</th>
+                    <th>Status</th>
+                    <th>Court Level</th>
+                    <th>Qualification</th>
+                </tr>
+            </thead>
+            <tbody id="lawyerBody">
+                <tr><td colspan="9" style="color:#888;">Loading lawyers from database...</td></tr>
+            </tbody>
+        </table>
+    </div>
 
-        <tr>
-            <td>1</td>
-            <td>Adv. Meera Krishnan</td>
-            <td>Civil</td>
-            <td>18 yrs</td>
-            <td>87.5%</td>
-            <td>320</td>
-            <td>280</td>
-            <td>4.9</td>
-            <td>Supreme Court</td>
-            <td>Property, Contracts</td>
-        </tr>
-
-        <tr>
-            <td>2</td>
-            <td>Adv. Vikram Singh</td>
-            <td>Corporate</td>
-            <td>11 yrs</td>
-            <td>86.2%</td>
-            <td>195</td>
-            <td>168</td>
-            <td>4.8</td>
-            <td>Delhi High Court</td>
-            <td>Business Law</td>
-        </tr>
-
-        <tr>
-            <td>3</td>
-            <td>Adv. Priya Sharma</td>
-            <td>Family</td>
-            <td>9 yrs</td>
-            <td>82%</td>
-            <td>150</td>
-            <td>123</td>
-            <td>4.6</td>
-            <td>District Court</td>
-            <td>Divorce, Custody</td>
-        </tr>
-
-    </table>
+    <div id="recordCount" style="margin-top:10px; font-size:13px; color:#555;"></div>
 
 </section>
 
 <script>
+let allLawyers = [];
+let db = null;
 
-function goBack() {
-    window.location.href = "index.html";
+function goBack() { window.location.href = "index.html"; }
+
+initDB().then(database => {
+    db = database;
+    document.getElementById('db-status').textContent = '✅ Database connected';
+    document.getElementById('db-status').className = 'db-badge connected';
+
+    // Populate category filter from Categories table
+    const cats = dbQuery(db, "SELECT key, name FROM Categories ORDER BY name");
+    const sel = document.getElementById('categoryFilter');
+    cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.key;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+    });
+
+    // Load all lawyers (exclude test row with Lyr_ID=1)
+    allLawyers = dbQuery(db, `
+        SELECT
+            l.Lyr_ID,
+            l.Name,
+            l.Experience,
+            l.Total_Case,
+            l.Won,
+            l.status,
+            l.court_level,
+            l.Qualification,
+            l.type,
+            c.name AS CategoryName
+        FROM Lawyer l
+        LEFT JOIN Categories c ON l.type = c.key
+        WHERE l.Lyr_ID != 1
+        ORDER BY l.Won DESC
+    `);
+
+    renderTable(allLawyers);
+
+}).catch(err => {
+    document.getElementById('db-status').textContent = '❌ DB Error: ' + err.message;
+    document.getElementById('db-status').className = 'db-badge error';
+    console.error(err);
+});
+
+function renderTable(rows) {
+    const tbody = document.getElementById('lawyerBody');
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="color:#888;">No lawyers found.</td></tr>';
+        document.getElementById('recordCount').textContent = '';
+        return;
+    }
+
+    tbody.innerHTML = rows.map((l, i) => {
+        const total   = parseInt(l.Total_Case) || 0;
+        const won     = parseInt(l.Won) || 0;
+        const winRate = total > 0 ? ((won / total) * 100).toFixed(1) + '%' : '—';
+        const status  = l.status ? l.status.charAt(0).toUpperCase() + l.status.slice(1).toLowerCase() : '—';
+        const court   = l.court_level ? l.court_level.trim() : '—';
+        const cat     = l.CategoryName || l.type || '—';
+
+        return `<tr>
+            <td>${i + 1}</td>
+            <td><strong>${l.Name}</strong><br><small style="color:#888;">${cat}</small></td>
+            <td>${l.Experience} yrs</td>
+            <td>${total}</td>
+            <td>${won}</td>
+            <td>${winRate}</td>
+            <td><span class="badge ${status.toLowerCase() === 'alive' ? 'badge-green' : 'badge-grey'}">${status}</span></td>
+            <td>${court}</td>
+            <td>${l.Qualification || '—'}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('recordCount').textContent =
+        `Showing ${rows.length} lawyer${rows.length !== 1 ? 's' : ''}`;
 }
 
 function filterLawyers() {
-    let category = document.getElementById("categoryFilter").value.toLowerCase();
-    let search = document.getElementById("searchLawyer").value.toLowerCase();
+    const catKey  = document.getElementById('categoryFilter').value.toLowerCase();
+    const court   = document.getElementById('courtFilter').value.toLowerCase();
+    const search  = document.getElementById('searchLawyer').value.toLowerCase();
 
-    let rows = document.querySelectorAll("#lawyerTable tr");
+    const filtered = allLawyers.filter(l => {
+        const matchCat    = !catKey || (l.type || '').toLowerCase() === catKey;
+        const matchCourt  = !court  || (l.court_level || '').toLowerCase().includes(court);
+        const matchSearch = !search
+            || l.Name.toLowerCase().includes(search)
+            || (l.Qualification || '').toLowerCase().includes(search)
+            || (l.court_level || '').toLowerCase().includes(search);
+        return matchCat && matchCourt && matchSearch;
+    });
 
-    for (let i = 1; i < rows.length; i++) {
-
-        let text = rows[i].innerText.toLowerCase();
-        let rowCategory = rows[i].cells[2].innerText.toLowerCase();
-
-        let matchCategory = category === "" || rowCategory === category;
-        let matchSearch = text.includes(search);
-
-        if (matchCategory && matchSearch) {
-            rows[i].style.display = "";
-        } else {
-            rows[i].style.display = "none";
-        }
-    }
+    renderTable(filtered);
 }
 
+function resetFilters() {
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('courtFilter').value = '';
+    document.getElementById('searchLawyer').value = '';
+    renderTable(allLawyers);
+}
 </script>
-
 </body>
 </html>

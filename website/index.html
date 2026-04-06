@@ -6,6 +6,8 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
+    <script src="db.js"></script>
 
     <header>
         <h1>⚖ Court Office Automation System</h1>
@@ -16,19 +18,22 @@
         <h2>Welcome to e-Court System</h2>
         <p>Select an option to continue</p>
 
+        <!-- DB status badge -->
+        <div id="db-status" class="db-badge loading">⏳ Connecting to database...</div>
+
         <div class="card-container">
+
+            <div class="card" onclick="goToCases()">
+                <div class="icon">📋</div>
+                <h3>All Cases</h3>
+                <p>View all registered cases</p>
+            </div>
 
             <div class="card" onclick="goToSchedule()">
                 <div class="icon">📅</div>
-                    <h3>Schedule</h3>
+                <h3>Schedule</h3>
                 <p>View schedules and hearings</p>
             </div>
-
-        <script>
-        function goToSchedule() {
-            window.location.href = "schedule.html";
-        }
-        </script>
 
             <div class="card" onclick="goToLawyers()">
                 <div class="icon">⚖</div>
@@ -37,14 +42,29 @@
             </div>
 
         </div>
-        <script>
-        function goToLawyers() {
-            window.location.href = "lawyers.html";
-        }
-        </script>
+
+        <!-- Live stats pulled from DB -->
+        <div class="stats-bar" id="statsBar" style="display:none;">
+            <div class="stat-item">
+                <span class="stat-num" id="statCases">—</span>
+                <span class="stat-label">Total Cases</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-num" id="statLawyers">—</span>
+                <span class="stat-label">Lawyers</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-num" id="statJudges">—</span>
+                <span class="stat-label">Judges</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-num" id="statSchedules">—</span>
+                <span class="stat-label">Hearings</span>
+            </div>
+        </div>
 
         <div class="support">
-            <h3>Help & Support</h3>
+            <h3>Help &amp; Support</h3>
             <p>📞 Contact Number</p>
             <h2>9233438283</h2>
             <hr>
@@ -56,5 +76,31 @@
         © 2026 Court Office Automation System, Government of India
     </footer>
 
+    <script>
+        function goToCases() { window.location.href = "cases.html"; }
+        function goToSchedule() { window.location.href = "schedule.html"; }
+        function goToLawyers()  { window.location.href = "lawyers.html"; }
+
+        // Boot DB and show live stats
+        initDB().then(db => {
+            document.getElementById('db-status').textContent = '✅ Database connected';
+            document.getElementById('db-status').className = 'db-badge connected';
+
+            const cases     = dbQuery(db, "SELECT COUNT(*) AS c FROM Crime_table")[0].c;
+            const lawyers   = dbQuery(db, "SELECT COUNT(*) AS c FROM Lawyer WHERE Lyr_ID != 1")[0].c;
+            const judges    = dbQuery(db, "SELECT COUNT(*) AS c FROM Judge")[0].c;
+            const schedules = dbQuery(db, "SELECT COUNT(*) AS c FROM case_schedule")[0].c;
+
+            document.getElementById('statCases').textContent     = cases;
+            document.getElementById('statLawyers').textContent   = lawyers;
+            document.getElementById('statJudges').textContent    = judges;
+            document.getElementById('statSchedules').textContent = schedules;
+            document.getElementById('statsBar').style.display    = 'flex';
+
+        }).catch(err => {
+            document.getElementById('db-status').textContent = '❌ Database error: ' + err.message;
+            document.getElementById('db-status').className = 'db-badge error';
+        });
+    </script>
 </body>
 </html>
