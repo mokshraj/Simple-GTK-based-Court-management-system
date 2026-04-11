@@ -4,6 +4,7 @@
 #include "get_executable_folder.h"
 #include "clock.h"
 #include <gio/gio.h>
+#include "file_select.h"
 //
 //
 int main(int argc, char **argv)
@@ -486,15 +487,19 @@ static void open_folder(GtkWidget *button, gpointer user_data)
     sqlite3_finalize(stmt);
     sqlite3_close(db);
     GtkWindow *parent = GTK_WINDOW(gtk_widget_get_root(button));
-    GtkFileDialog *dialog = gtk_file_dialog_new();
+    // GtkFileDialog *dialog = gtk_file_dialog_new();
     char * path = g_strdup_printf("%s/Cases/%d/%s/",get_executable_folder(),case_id,(char *)g_object_get_data(G_OBJECT(button),"Folder"));
     g_print(path);
     GFile *folder = g_file_new_for_path(path);
-    gtk_file_dialog_set_initial_folder(dialog, folder);
+    GtkWidget *file_explorer = file_select_window(GTK_WIDGET(parent),folder);
+    // gtk_file_dialog_set_initial_folder(dialog, folder);
     g_object_unref(folder);
-    GtkFileFilter *filter = gtk_file_filter_new();
+    // GtkFileFilter *filter = gtk_file_filter_new();
 
-    gtk_file_dialog_open(dialog, parent, NULL, dialog_open_file, NULL);
+    // gtk_file_dialog_open(dialog, parent, NULL, dialog_open_file, NULL);
+    gtk_window_present(GTK_WINDOW(file_explorer));
+    GdkRectangle size = GetMonitorSize(file_explorer);
+    gtk_window_set_default_size(GTK_WINDOW(file_explorer),size.width * 0.5 ,size.height *0.5);
 }
 //
 //
