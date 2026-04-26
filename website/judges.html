@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Judge Directory</title>
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script src="db.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+  :root {
+    --navy:    #0d1b2a;
+    --gold:    #b8960c;
+    --gold-lt: #e8c84a;
+    --cream:   #f5f0e8;
+    --white:   #ffffff;
+    --muted:   #6b7280;
+    --border:  #ddd5c4;
+    --green:   #166534;
+    --red:     #991b1b;
+    --sc-col:  #7c3aed;
+    --hc-col:  #1d4ed8;
+    --dc-col:  #0f766e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Jost', sans-serif;
+    background: var(--cream);
+    color: var(--navy);
+  }
+
+  /* ── HEADER ── */
+  header.judge-header {
+    background: var(--navy);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .header-stripe {
+    height: 4px;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--gold-lt) 50%, var(--gold) 100%);
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 40px;
+    position: relative;
+    z-index: 1;
+  }
+  .header-inner::after {
+    content: '⚖';
+    position: absolute;
+    right: 40px;
+    font-size: 80px;
+    opacity: 0.05;
+    pointer-events: none;
+  }
+  .back-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 7px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .back-btn:hover { background: rgba(255,255,255,0.15); }
+  .header-text h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+  }
+  .header-text p {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    margin-top: 4px;
+    font-weight: 300;
+  }
+
+  /* ── SUMMARY STRIP ── */
+  .summary-strip {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+    gap: 0;
+  }
+  .sum-item {
+    padding: 18px 36px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    min-width: 130px;
+  }
+  .sum-item:last-child { border-right: none; }
+  .sum-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1;
+  }
+  .sum-num.gold { color: var(--gold); }
+  .sum-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .page-body {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 900px) {
+    .page-body { grid-template-columns: 1fr; }
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+  .panel {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .panel-head {
+    background: var(--navy);
+    color: white;
+    padding: 12px 16px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-body { padding: 16px; }
+
+  /* Filters */
+  .filter-group { margin-bottom: 14px; }
+  .filter-group:last-child { margin-bottom: 0; }
+  .filter-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .filter-group input,
+  .filter-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    background: white;
+    color: var(--navy);
+  }
+  .filter-group input:focus,
+  .filter-group select:focus {
+    outline: none;
+    border-color: var(--gold);
+  }
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-search {
+    flex: 1;
+    padding: 9px;
+    background: var(--navy);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-search:hover { background: #1a2f45; }
+  .btn-reset {
+    padding: 9px 14px;
+    background: var(--cream);
+    color: var(--navy);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* Court level legend */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Charts */
+  .chart-wrap { height: 180px; position: relative; }
+
+  /* ── MAIN CONTENT ── */
+  .main-content { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── JUDGE CARDS GRID ── */
+  .judges-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .judge-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    animation: fadeUp 0.3s ease both;
+  }
+  .judge-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(13,27,42,0.12);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-accent {
+    height: 5px;
+  }
+  .accent-sc { background: var(--sc-col); }
+  .accent-hc { background: var(--hc-col); }
+  .accent-dc { background: var(--dc-col); }
+  .accent-other { background: var(--gold); }
+
+  .card-top {
+    padding: 16px 16px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .judge-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: var(--gold-lt);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .judge-info { flex: 1; }
+  .judge-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--navy);
+  }
+  .judge-court {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .judge-status {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .status-alive { background: #dcfce7; color: var(--green); }
+  .status-yes   { background: #dcfce7; color: var(--green); }
+  .status-other { background: #f1f5f9; color: var(--muted); }
+
+  .card-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--border);
+  }
+  .cs-item {
+    padding: 10px 8px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .cs-item:last-child { border-right: none; }
+  .cs-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1;
+  }
+  .cs-lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* Experience bar */
+  .exp-bar-wrap {
+    padding: 0 16px 14px;
+  }
+  .exp-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .exp-track {
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .exp-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--gold), var(--gold-lt));
+    transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* Qualification chips */
+  .qual-chips {
+    padding: 0 16px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .qual-chip {
+    background: var(--cream);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--navy);
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ── DB STATUS ── */
+  .db-status-bar {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 14px;
+    font-size: 12px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+  .record-count { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ── MODAL / EXPANDED VIEW ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(13,27,42,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 8px;
+    max-width: 680px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal-header {
+    background: var(--navy);
+    color: white;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .modal-close:hover { color: white; }
+  .modal-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .modal-sub { font-size: 13px; opacity: 0.6; margin-top: 4px; }
+  .modal-body { padding: 24px; }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .detail-item { }
+  .detail-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .detail-value {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--navy);
+  }
+
+  .modal-section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+    margin-top: 20px;
+  }
+
+  /* Experience timeline visual */
+  .exp-visual {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .exp-big {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .exp-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .cases-list {
+    font-size: 13px;
+  }
+  .case-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f0ea;
+  }
+  .case-row:last-child { border-bottom: none; }
+  .case-fir { color: var(--muted); font-size: 12px; }
+  .case-name { font-weight: 500; }
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header class="judge-header">
+  <div class="header-stripe"></div>
+  <div class="header-inner">
+    <button class="back-btn" onclick="window.location.href='index.html'">⬅ Back</button>
+    <div class="header-text">
+      <h1>Judge Directory</h1>
+      <p>Court-wise listing with experience &amp; case records</p>
+    </div>
+  </div>
+</header>
+
+<!-- SUMMARY STRIP -->
+<div class="summary-strip">
+  <div class="sum-item"><div class="sum-num" id="sumTotal">—</div><div class="sum-label">Total Judges</div></div>
+  <div class="sum-item"><div class="sum-num gold" id="sumAvgExp">—</div><div class="sum-label">Avg Experience (yrs)</div></div>
+  <div class="sum-item"><div class="sum-num" id="sumSC">—</div><div class="sum-label">Supreme Court</div></div>
+  <div class="sum-item"><div class="sum-num" id="sumHC">—</div><div class="sum-label">High Court</div></div>
+  <div class="sum-item"><div class="sum-num" id="sumDC">—</div><div class="sum-label">District Court</div></div>
+</div>
+
+<!-- PAGE BODY -->
+<div class="page-body">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- DB Status -->
+    <div id="dbStatus" class="db-status-bar">⏳ Connecting…</div>
+
+    <!-- Filters -->
+    <div class="panel">
+      <div class="panel-head">🔍 Filter Judges</div>
+      <div class="panel-body">
+        <div class="filter-group">
+          <label class="filter-label">Search Name</label>
+          <input type="text" id="searchInput" placeholder="e.g. Prashant" oninput="applyFilters()">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Court Level</label>
+          <select id="courtFilter" onchange="applyFilters()">
+            <option value="">All Courts</option>
+            <option value="Supreme Court">Supreme Court</option>
+            <option value="High Court">High Court</option>
+            <option value="District Court">District Court</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Min. Experience (yrs)</label>
+          <input type="number" id="expFilter" placeholder="e.g. 15" min="0" oninput="applyFilters()">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Specialisation</label>
+          <select id="typeFilter" onchange="applyFilters()">
+            <option value="">All Types</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn-search" onclick="applyFilters()">Apply</button>
+          <button class="btn-reset" onclick="resetFilters()">↺</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Court distribution chart -->
+    <div class="panel">
+      <div class="panel-head">🏛 Court Distribution</div>
+      <div class="panel-body">
+        <div class="chart-wrap">
+          <canvas id="courtChart"></canvas>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--sc-col)"></div>Supreme Court</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--hc-col)"></div>High Court</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--dc-col)"></div>District Court</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Experience distribution chart -->
+    <div class="panel">
+      <div class="panel-head">📊 Experience Spread</div>
+      <div class="panel-body">
+        <div class="chart-wrap">
+          <canvas id="expChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <div id="recordCount" class="record-count"></div>
+    <div class="judges-grid" id="judgesGrid">
+      <div class="empty-state">⏳ Loading judges…</div>
+    </div>
+  </div>
+
+</div><!-- /page-body -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-name" id="modalName">—</div>
+        <div class="modal-sub" id="modalSub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="exp-visual">
+        <div class="exp-big" id="modalExpBig">—</div>
+        <div class="exp-desc" id="modalExpDesc">years of judicial<br>experience</div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-label">Qualification</div><div class="detail-value" id="modalQual">—</div></div>
+        <div class="detail-item"><div class="detail-label">Court Level</div><div class="detail-value" id="modalCourt">—</div></div>
+        <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value" id="modalStatus">—</div></div>
+        <div class="detail-item"><div class="detail-label">Specialisation</div><div class="detail-value" id="modalType">—</div></div>
+        <div class="detail-item"><div class="detail-label">Age</div><div class="detail-value" id="modalAge">—</div></div>
+        <div class="detail-item"><div class="detail-label">Cases Completed</div><div class="detail-value" id="modalCases">—</div></div>
+        <div class="detail-item"><div class="detail-label">Contact</div><div class="detail-value" id="modalContact">—</div></div>
+        <div class="detail-item"><div class="detail-label">Address</div><div class="detail-value" id="modalAddress">—</div></div>
+      </div>
+
+      <div class="modal-section-title">Active Cases</div>
+      <div class="cases-list" id="modalCasesList">No cases found.</div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+Chart.defaults.font.family = "'Jost', sans-serif";
+Chart.defaults.color = '#6b7280';
+
+let allJudges = [];
+let courtChartInstance = null;
+let expChartInstance   = null;
+
+const typeMap = {
+  ci:'Civil', cr:'Criminal', fm:'Family',
+  co:'Corporate', tx:'Tax',
+  civil:'Civil', criminal:'Criminal', family:'Family',
+  corporate:'Corporate', tax:'Tax'
+};
+
+const courtAccent = lvl => {
+  const l = (lvl||'').toLowerCase();
+  if (l.includes('supreme'))  return 'accent-sc';
+  if (l.includes('high'))     return 'accent-hc';
+  if (l.includes('district')) return 'accent-dc';
+  return 'accent-other';
+};
+
+const courtColor = lvl => {
+  const l = (lvl||'').toLowerCase();
+  if (l.includes('supreme'))  return '#7c3aed';
+  if (l.includes('high'))     return '#1d4ed8';
+  if (l.includes('district')) return '#0f766e';
+  return '#b8960c';
+};
+
+(async () => {
+  try {
+    const db = await initDB();
+    document.getElementById('dbStatus').textContent = '✅ Database connected';
+    document.getElementById('dbStatus').style.cssText += ';color:#166534;border-color:#86efac;background:#dcfce7';
+
+    // Load all judges
+    allJudges = dbQuery(`
+      SELECT * FROM Judge ORDER BY Experience DESC
+    `);
+
+    // Populate type filter
+    const types = [...new Set(allJudges.map(j => (j.type||'').toLowerCase()))].filter(Boolean);
+    const typeSel = document.getElementById('typeFilter');
+    types.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = typeMap[t] || t.toUpperCase();
+      typeSel.appendChild(opt);
+    });
+
+    // Summary strip
+    const total  = allJudges.length;
+    const avgExp = total ? (allJudges.reduce((s,j)=>s+(parseInt(j.Experience)||0),0)/total).toFixed(1) : '—';
+    const scCnt  = allJudges.filter(j=>(j.court_level||'').toLowerCase().includes('supreme')).length;
+    const hcCnt  = allJudges.filter(j=>(j.court_level||'').toLowerCase().includes('high')).length;
+    const dcCnt  = allJudges.filter(j=>(j.court_level||'').toLowerCase().includes('district')).length;
+
+    document.getElementById('sumTotal').textContent  = total;
+    document.getElementById('sumAvgExp').textContent = avgExp;
+    document.getElementById('sumSC').textContent     = scCnt;
+    document.getElementById('sumHC').textContent     = hcCnt;
+    document.getElementById('sumDC').textContent     = dcCnt;
+
+    // Court distribution doughnut
+    courtChartInstance = new Chart(document.getElementById('courtChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Supreme Court','High Court','District Court','Other'],
+        datasets: [{
+          data: [scCnt, hcCnt, dcCnt, total-scCnt-hcCnt-dcCnt],
+          backgroundColor: ['#7c3aed','#1d4ed8','#0f766e','#b8960c'],
+          borderWidth: 2, borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // Experience bucket bar
+    const buckets = {'0–10':0,'11–20':0,'21–30':0,'31+':0};
+    allJudges.forEach(j => {
+      const e = parseInt(j.Experience)||0;
+      if (e <= 10) buckets['0–10']++;
+      else if (e <= 20) buckets['11–20']++;
+      else if (e <= 30) buckets['21–30']++;
+      else buckets['31+']++;
+    });
+    expChartInstance = new Chart(document.getElementById('expChart'), {
+      type: 'bar',
+      data: {
+        labels: Object.keys(buckets),
+        datasets: [{
+          label: 'Judges',
+          data: Object.values(buckets),
+          backgroundColor: ['#e8c84a','#b8960c','#7c6214','#4a3d0c'],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+
+    renderCards(allJudges);
+
+  } catch(e) {
+    document.getElementById('dbStatus').textContent = '❌ ' + e.message;
+    document.getElementById('judgesGrid').innerHTML =
+      `<div class="empty-state" style="color:#991b1b;">Error: ${e.message}</div>`;
+    console.error(e);
+  }
+})();
+
+// ── RENDER CARDS ────────────────────────────────────────────
+function renderCards(judges) {
+  const grid = document.getElementById('judgesGrid');
+  document.getElementById('recordCount').textContent =
+    `Showing ${judges.length} judge${judges.length !== 1 ? 's' : ''}`;
+
+  if (judges.length === 0) {
+    grid.innerHTML = '<div class="empty-state">No judges match your filters.</div>';
+    return;
+  }
+
+  const maxExp = Math.max(...allJudges.map(j => parseInt(j.Experience)||0));
+
+  grid.innerHTML = judges.map((j, idx) => {
+    const initials = (j.Name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const exp      = parseInt(j.Experience) || 0;
+    const expPct   = maxExp > 0 ? (exp / maxExp * 100) : 0;
+    const statusRaw = (j.status||'').toLowerCase();
+    const statusClass = statusRaw === 'alive' || statusRaw === 'yes' ? 'status-alive' : 'status-other';
+    const statusLabel = statusRaw === 'alive' ? 'Active' : statusRaw === 'yes' ? 'Active' : (j.status || 'Unknown');
+    const quals = (j.Qualification||'').split(',').map(q=>q.trim()).filter(Boolean);
+    const typeLabel = typeMap[(j.type||'').toLowerCase()] || (j.type||'General');
+    const accent = courtAccent(j.court_level);
+
+    return `
+    <div class="judge-card" onclick="openModal(${j.Judge_ID})"
+         style="animation-delay:${idx * 40}ms">
+      <div class="card-accent ${accent}"></div>
+      <div class="card-top">
+        <div class="judge-avatar">${initials}</div>
+        <div class="judge-info">
+          <div class="judge-name">Hon. ${j.Name}</div>
+          <div class="judge-court">${(j.court_level||'—').trim()}</div>
+        </div>
+        <span class="judge-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="card-stats">
+        <div class="cs-item">
+          <div class="cs-num">${exp}</div>
+          <div class="cs-lbl">Exp (yrs)</div>
+        </div>
+        <div class="cs-item">
+          <div class="cs-num">${j.Complete_cases || '—'}</div>
+          <div class="cs-lbl">Cases</div>
+        </div>
+        <div class="cs-item">
+          <div class="cs-num">${j.Age || '—'}</div>
+          <div class="cs-lbl">Age</div>
+        </div>
+      </div>
+      <div class="exp-bar-wrap">
+        <div class="exp-bar-label">
+          <span>Experience</span>
+          <span>${exp} yrs</span>
+        </div>
+        <div class="exp-track">
+          <div class="exp-fill" style="width:${expPct}%"></div>
+        </div>
+      </div>
+      <div class="qual-chips">
+        ${quals.map(q => `<span class="qual-chip">${q}</span>`).join('')}
+        <span class="qual-chip" style="background:#eef2ff;border-color:#c7d2fe;color:#3730a3">${typeLabel}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── MODAL ────────────────────────────────────────────────────
+function openModal(judgeId) {
+  const j = allJudges.find(j => j.Judge_ID == judgeId);
+  if (!j) return;
+
+  document.getElementById('modalName').textContent = 'Hon. ' + j.Name;
+  document.getElementById('modalSub').textContent  =
+    (j.court_level||'').trim() + ' · ' + (typeMap[(j.type||'').toLowerCase()] || j.type || 'General');
+
+  document.getElementById('modalExpBig').textContent  = j.Experience || '—';
+  document.getElementById('modalExpDesc').innerHTML   =
+    `years of judicial<br>experience · Age ${j.Age||'—'}`;
+
+  document.getElementById('modalQual').textContent    = j.Qualification || '—';
+  document.getElementById('modalCourt').textContent   = (j.court_level||'—').trim();
+  document.getElementById('modalStatus').textContent  = j.status || '—';
+  document.getElementById('modalType').textContent    = typeMap[(j.type||'').toLowerCase()] || j.type || '—';
+  document.getElementById('modalAge').textContent     = j.Age || '—';
+  document.getElementById('modalCases').textContent   = j.Complete_cases || '—';
+  document.getElementById('modalContact').textContent = j.Contact_Number || '—';
+  document.getElementById('modalAddress').textContent = j.Address || '—';
+
+  // Active cases
+  try {
+    const cases = dbQuery(`
+      SELECT FIR_Number, Name, status, Verdict FROM Crime_table
+      WHERE Judge_ID = ? ORDER BY FIR_Number DESC
+    `, [judgeId]);
+
+    if (cases.length === 0) {
+      document.getElementById('modalCasesList').innerHTML =
+        '<div style="color:#9ca3af;font-size:13px;padding:10px 0;">No cases assigned.</div>';
+    } else {
+      document.getElementById('modalCasesList').innerHTML = cases.map(c => {
+        const vBadge = c.Verdict
+          ? `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:3px;font-size:11px;">${c.Verdict}</span>`
+          : `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:3px;font-size:11px;">Pending</span>`;
+        return `<div class="case-row">
+          <div>
+            <span class="case-fir">FIR #${c.FIR_Number} · </span>
+            <span class="case-name">${c.Name}</span>
+          </div>
+          <div>${vBadge}</div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    document.getElementById('modalCasesList').innerHTML = '<div style="color:#991b1b;">Error loading cases.</div>';
+  }
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+function applyFilters() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const court  = document.getElementById('courtFilter').value.toLowerCase();
+  const minExp = parseInt(document.getElementById('expFilter').value) || 0;
+  const type   = document.getElementById('typeFilter').value.toLowerCase();
+
+  const filtered = allJudges.filter(j => {
+    const matchSearch = !search || (j.Name||'').toLowerCase().includes(search);
+    const matchCourt  = !court  || (j.court_level||'').toLowerCase().includes(court);
+    const matchExp    = (parseInt(j.Experience)||0) >= minExp;
+    const matchType   = !type   || (j.type||'').toLowerCase() === type;
+    return matchSearch && matchCourt && matchExp && matchType;
+  });
+
+  renderCards(filtered);
+}
+
+function resetFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('courtFilter').value = '';
+  document.getElementById('expFilter').value   = '';
+  document.getElementById('typeFilter').value  = '';
+  renderCards(allJudges);
+}
+</script>
+
+</body>
+</html>

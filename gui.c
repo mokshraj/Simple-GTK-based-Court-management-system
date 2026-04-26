@@ -491,6 +491,7 @@ static void open_folder(GtkWidget *button, gpointer user_data)
     char * path = g_strdup_printf("%s/Cases/%d/%s/",get_executable_folder(),case_id,(char *)g_object_get_data(G_OBJECT(button),"Folder"));
     g_print(path);
     GFile *folder = g_file_new_for_path(path);
+    ensure_directory_exists(path);
     GtkWidget *file_explorer = file_select_window(GTK_WIDGET(parent),folder);
     // gtk_file_dialog_set_initial_folder(dialog, folder);
     g_object_unref(folder);

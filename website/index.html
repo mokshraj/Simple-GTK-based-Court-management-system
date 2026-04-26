@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Court Office Automation System</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="icon.png">
 </head>
 <body>
     <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
@@ -39,6 +40,12 @@
                 <div class="icon">⚖</div>
                 <h3>Lawyers</h3>
                 <p>Browse lawyers by category and ranking</p>
+            </div>
+
+            <div class="card" onclick="goToJudges()">
+                <div class="icon">🏛</div>
+                <h3>Judges</h3>
+                <p>View judges, court levels & experience</p>
             </div>
 
         </div>
@@ -80,6 +87,7 @@
         function goToCases() { window.location.href = "cases.html"; }
         function goToSchedule() { window.location.href = "schedule.html"; }
         function goToLawyers()  { window.location.href = "lawyers.html"; }
+        function goToJudges()   { window.location.href = "judges.html"; }
 
         // Boot DB and show live stats
         initDB().then(db => {

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Lawyer Directory</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icon.png">
 </head>
 
 <body>
@@ -36,7 +37,7 @@
 
         <input type="text" id="searchLawyer" placeholder="Search name or specialization" oninput="filterLawyers()">
         <button onclick="filterLawyers()">Search</button>
-        <button onclick="resetFilters()" style="background:#eee;">Reset</button>
+        <button onclick="resetFilters()" style="background:#000000;">Reset</button>
     </div>
 
     <!-- TABLE -->
@@ -62,6 +63,7 @@
     </div>
 
     <div id="recordCount" style="margin-top:10px; font-size:13px; color:#555;"></div>
+    <div style="margin-top:6px; font-size:12px; color:#aaa;">💡 Click any row to view that lawyer's full analytics</div>
 
 </section>
 
@@ -129,7 +131,8 @@ function renderTable(rows) {
         const court   = l.court_level ? l.court_level.trim() : '—';
         const cat     = l.CategoryName || l.type || '—';
 
-        return `<tr>
+        return `<tr onclick="window.location.href='lawyer-profile.html?id=${l.Lyr_ID}'"
+                    style="cursor:pointer;" title="View ${l.Name}'s analytics">
             <td>${i + 1}</td>
             <td><strong>${l.Name}</strong><br><small style="color:#888;">${cat}</small></td>
             <td>${l.Experience} yrs</td>

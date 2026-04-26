@@ -4,6 +4,80 @@
 <meta charset="UTF-8">
 <title>All Cases</title>
 <link rel="stylesheet" href="styles.css">
+<style>
+.modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); z-index: 200;
+    align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.case-modal {
+    background: #fff; border: 2px solid #111;
+    max-width: 780px; width: 100%; max-height: 90vh; overflow-y: auto;
+    animation: modalPop 0.2s ease; box-shadow: 6px 6px 0 #111;
+}
+@keyframes modalPop {
+    from { opacity:0; transform:scale(0.96) translateY(8px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+}
+.modal-top {
+    background: #111; color: white;
+    padding: 20px 24px 16px;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.modal-fir { font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:#aaa; margin-bottom:4px; }
+.modal-case-name { font-size:22px; font-weight:700; line-height:1.2; }
+.modal-type-badge {
+    display:inline-block; background:#c49a3c; color:#111;
+    font-size:11px; font-weight:600; padding:3px 10px; border-radius:2px;
+    margin-top:8px; text-transform:uppercase; letter-spacing:0.07em;
+}
+.modal-close-btn {
+    background:none; border:1px solid rgba(255,255,255,0.3); color:white;
+    font-size:20px; cursor:pointer; padding:2px 10px; border-radius:3px;
+    line-height:1.4; flex-shrink:0; transition:background 0.15s;
+}
+.modal-close-btn:hover { background:rgba(255,255,255,0.15); }
+.modal-status-bar {
+    padding:10px 24px; font-size:13px; font-weight:500;
+    border-bottom:1px solid #e5e5e5;
+    display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+}
+.verdict-given   { background:#d4edda; color:#155724; }
+.verdict-pending { background:#cce5ff; color:#004085; }
+.modal-body { padding:20px 24px; }
+.ms-section { margin-bottom:22px; }
+.ms-title {
+    font-size:11px; text-transform:uppercase; letter-spacing:0.1em;
+    color:#888; border-bottom:1px solid #eee; padding-bottom:6px; margin-bottom:12px;
+}
+.detail-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; }
+.detail-label { font-size:11px; color:#999; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:3px; }
+.detail-value { font-size:14px; font-weight:500; color:#111; word-break:break-word; }
+.hearing-row {
+    display:flex; align-items:center; gap:12px;
+    padding:9px 0; border-bottom:1px solid #f3f3f3; font-size:13px;
+}
+.hearing-row:last-child { border-bottom:none; }
+.hearing-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.hdot-completed { background:#28a745; }
+.hdot-scheduled { background:#007bff; }
+.hearing-date { font-weight:500; min-width:100px; }
+.hearing-time { color:#666; }
+.hearing-status { margin-left:auto; }
+.info-box {
+    background:#f8f8f8; border:1px solid #e5e5e5;
+    border-radius:4px; padding:14px 16px; font-size:13px; line-height:1.8;
+}
+.ib-row { display:flex; gap:8px; }
+.ib-label { color:#888; min-width:120px; flex-shrink:0; }
+.ib-val   { color:#111; font-weight:500; }
+.no-data  { color:#aaa; font-size:13px; font-style:italic; }
+/* clickable row */
+#caseBody tr { cursor: pointer; }
+#caseBody tr:hover td { background: #f0f4ff; }
+.click-hint { font-size:12px; color:#aaa; margin-top:6px; }
+</style>
 </head>
 
 <body>
@@ -58,53 +132,151 @@
             <tr><td colspan="10">⏳ Loading from database...</td></tr>
         </tbody>
     </table>
+    <p class="click-hint">💡 Click any row to view full case details</p>
 
 </section>
 
+<!-- ── CASE DETAIL MODAL ── -->
+<div class="modal-overlay" id="caseModalOverlay" onclick="handleOverlayClick(event)">
+  <div class="case-modal" id="caseModal">
+
+    <div class="modal-top">
+      <div>
+        <div class="modal-fir" id="mFir">FIR # —</div>
+        <div class="modal-case-name" id="mName">—</div>
+        <div class="modal-type-badge" id="mType">—</div>
+      </div>
+      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-status-bar" id="mStatusBar">
+      <span id="mStatusText">—</span>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="ms-section">
+        <div class="ms-title">📋 Case Details</div>
+        <div class="detail-grid">
+          <div><div class="detail-label">Crime Date</div><div class="detail-value" id="mCrimeDate">—</div></div>
+          <div><div class="detail-label">Incident Place</div><div class="detail-value" id="mPlace">—</div></div>
+          <div><div class="detail-label">Court Level</div><div class="detail-value" id="mCourtLevel">—</div></div>
+          <div><div class="detail-label">Total Hearings</div><div class="detail-value" id="mHearings">—</div></div>
+          <div><div class="detail-label">Police Handler</div><div class="detail-value" id="mPolice">—</div></div>
+          <div><div class="detail-label">Status</div><div class="detail-value" id="mStatus">—</div></div>
+        </div>
+      </div>
+
+      <div class="ms-section">
+        <div class="ms-title">⚖ Verdict &amp; Punishment</div>
+        <div class="detail-grid">
+          <div><div class="detail-label">Verdict</div><div class="detail-value" id="mVerdict">—</div></div>
+          <div><div class="detail-label">Punishment</div><div class="detail-value" id="mPunishment">—</div></div>
+        </div>
+      </div>
+
+      <div class="ms-section">
+        <div class="ms-title">👥 Assigned Personnel</div>
+        <div class="detail-grid">
+          <div><div class="detail-label">Presiding Judge</div><div class="detail-value" id="mJudge">—</div></div>
+          <div><div class="detail-label">Lawyer (Prosecution)</div><div class="detail-value" id="mLyr1">—</div></div>
+          <div><div class="detail-label">Lawyer (Defence)</div><div class="detail-value" id="mLyr2">—</div></div>
+        </div>
+      </div>
+
+      <div class="ms-section">
+        <div class="ms-title">🔎 Criminal Record</div>
+        <div id="mCriminalBox"><div class="no-data">No criminal record linked.</div></div>
+      </div>
+
+      <div class="ms-section">
+        <div class="ms-title">🗂 Evidence on File</div>
+        <div id="mEvidenceBox"><div class="no-data">No evidence records found.</div></div>
+      </div>
+
+      <div class="ms-section">
+        <div class="ms-title">📅 Hearing Schedule</div>
+        <div id="mScheduleList"><div class="no-data">No hearings scheduled.</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <script>
+// Maps every possible stored value → canonical 2-letter key
+const KEY_NORM = {
+    'ci':'CI','cr':'CR','fm':'FM','co':'CO','tx':'TX',
+    'civil':'CI','criminal':'CR','family':'FM','corporate':'CO','tax':'TX'
+};
+// Maps canonical 2-letter key → display name
+const KEY_NAME = {
+    'CI':'Civil','CR':'Criminal','FM':'Family','CO':'Corporate','TX':'Tax'
+};
+
+function normalizeTypeKey(raw) {
+    return KEY_NORM[(raw||'').trim().toLowerCase()] || (raw||'').trim().toUpperCase();
+}
+function typeDisplayName(key) {
+    return KEY_NAME[key] || key || 'Unknown';
+}
+
 let allCases = [];
-let db = null;
 
 (async () => {
     try {
-        db = await initDB();
-        document.getElementById("dbStatus").textContent = "✅ Database connected, loading cases...";
+        await initDB();
 
-        // Populate type filter from DB
-        const cats = dbQuery(db, `SELECT key, name FROM Categories ORDER BY name`);
+        // DEBUG: raw count directly from DB — shows true row count before any JS processing
+        const rawCount = dbQuery(`SELECT COUNT(*) AS n FROM Crime_table`)[0].n;
+        console.warn("RAW Crime_table row count:", rawCount);
+        document.getElementById("dbStatus").textContent = `✅ DB connected — ${rawCount} raw rows in Crime_table`;
+
+        // Populate type filter — use canonical keys as option values
+        const cats = dbQuery(`SELECT key, name FROM Categories ORDER BY name`);
         const typeSel = document.getElementById("typeFilter");
         cats.forEach(c => {
             const opt = document.createElement("option");
-            opt.value = c.key;
+            opt.value = c.key.toUpperCase();   // always uppercase: CI, CR, FM…
             opt.textContent = c.name;
             typeSel.appendChild(opt);
         });
 
-        allCases = dbQuery(db, `
+        allCases = dbQuery(`
             SELECT
+                ct.Case_ID,
                 ct.FIR_Number,
-                ct.Name       AS case_name,
-                ct.type       AS type_key,
-                cat.name      AS type_name,
+                ct.Name           AS case_name,
+                ct.type           AS type_key,
                 ct.Crime_date,
                 ct.Total_Hearings,
                 ct.Verdict,
                 ct.status,
                 ct.Punishment,
                 ct.court_level,
-                j.Name        AS judge_name,
-                l1.Name       AS lawyer1,
-                l2.Name       AS lawyer2
+                ct.Incident_Place,
+                ct.Police_handler,
+                ct.Criminal_ID,
+                j.Name            AS judge_name,
+                l1.Name           AS lawyer1,
+                l2.Name           AS lawyer2
             FROM Crime_table ct
-            LEFT JOIN Categories cat ON ct.type = cat.key
-            LEFT JOIN Judge j        ON ct.Judge_ID = j.Judge_ID
-            LEFT JOIN Lawyer l1      ON ct.Lyr1_ID  = l1.Lyr_ID
-            LEFT JOIN Lawyer l2      ON ct.Lyr2_ID  = l2.Lyr_ID
+            LEFT JOIN Judge   j  ON ct.Judge_ID = j.Judge_ID
+            LEFT JOIN Lawyer  l1 ON ct.Lyr1_ID  = l1.Lyr_ID
+            LEFT JOIN Lawyer  l2 ON ct.Lyr2_ID  = l2.Lyr_ID
             ORDER BY ct.FIR_Number ASC
         `);
 
+        // Normalize every row's type_key so filtering always works
+        allCases.forEach(c => {
+            c.type_key  = normalizeTypeKey(c.type_key);
+            c.type_name = typeDisplayName(c.type_key);
+        });
+
         document.getElementById("dbStatus").textContent =
             `✅ Loaded ${allCases.length} cases from database`;
+
+        console.log("All cases loaded:", allCases.length, allCases.map(c => ({fir: c.FIR_Number, name: c.case_name, type: c.type_key})));
 
         renderTable();
 
@@ -116,13 +288,14 @@ let db = null;
     }
 })();
 
+// ── TABLE RENDER ────────────────────────────────────────────
 function renderTable() {
-    const search  = document.getElementById("searchInput").value.toLowerCase();
-    const type    = document.getElementById("typeFilter").value;
+    const search  = document.getElementById("searchInput").value.toLowerCase().trim();
+    const type    = document.getElementById("typeFilter").value.toUpperCase().trim();
     const verdict = document.getElementById("verdictFilter").value;
 
     const filtered = allCases.filter(c => {
-        const text = [c.case_name, c.FIR_Number, c.type_key, c.type_name, c.judge_name]
+        const text = [c.case_name, c.FIR_Number, c.type_key, c.type_name, c.judge_name, c.lawyer1, c.lawyer2]
             .join(" ").toLowerCase();
         const matchSearch  = !search  || text.includes(search);
         const matchType    = !type    || c.type_key === type;
@@ -144,11 +317,10 @@ function renderTable() {
             ? `<span class="badge badge-green">${c.Verdict}</span>`
             : `<span class="badge badge-blue">Pending</span>`;
 
-        return `
-        <tr>
+        return `<tr onclick="openCaseModal(${c.FIR_Number})">
             <td>${c.FIR_Number}</td>
-            <td>${c.case_name}</td>
-            <td>${c.type_name || c.type_key || "—"}</td>
+            <td style="font-weight:500;text-align:left;">${c.case_name}</td>
+            <td>${c.type_name}</td>
             <td>${c.judge_name || "—"}</td>
             <td>${c.lawyer1 || "—"}</td>
             <td>${c.lawyer2 || "—"}</td>
@@ -166,6 +338,144 @@ function resetFilters() {
     document.getElementById("verdictFilter").value = "";
     renderTable();
 }
+
+// ── MODAL ────────────────────────────────────────────────────
+function set(id, val) {
+    document.getElementById(id).textContent = val || "—";
+}
+
+function openCaseModal(firNum) {
+    const c = allCases.find(x => x.FIR_Number == firNum);
+    if (!c) return;
+
+    // Header
+    set('mFir',  'FIR # ' + c.FIR_Number);
+    set('mName', c.case_name);
+    set('mType', c.type_name);
+
+    // Status bar
+    const bar = document.getElementById('mStatusBar');
+    if (c.Verdict) {
+        bar.className = 'modal-status-bar verdict-given';
+        document.getElementById('mStatusText').innerHTML =
+            `✅ Verdict Given &nbsp;·&nbsp; <strong>${c.Verdict}</strong>`;
+    } else {
+        bar.className = 'modal-status-bar verdict-pending';
+        document.getElementById('mStatusText').innerHTML =
+            `⏳ Verdict Pending &nbsp;·&nbsp; ${c.Total_Hearings} hearing(s) conducted`;
+    }
+
+    // Core fields
+    set('mCrimeDate',  c.Crime_date);
+    set('mPlace',      c.Incident_Place || 'Not recorded');
+    set('mCourtLevel', c.court_level    || 'Not specified');
+    set('mHearings',   c.Total_Hearings);
+    set('mPolice',     c.Police_handler || 'Not assigned');
+    set('mStatus',     c.status         || 'Active');
+    set('mVerdict',    c.Verdict        || 'Pending');
+    set('mPunishment', c.Punishment     || 'None / Not determined');
+    set('mJudge',      c.judge_name ? 'Hon. ' + c.judge_name : 'Not assigned');
+    set('mLyr1',       c.lawyer1 || 'Not assigned');
+    set('mLyr2',       c.lawyer2 || 'Not assigned');
+
+    // Criminal record
+    try {
+        const criminals = c.Criminal_ID
+            ? dbQuery(`SELECT * FROM Criminals WHERE Criminal_ID = ?`, [c.Criminal_ID])
+            : [];
+        if (criminals.length > 0) {
+            const cr = criminals[0];
+            document.getElementById('mCriminalBox').innerHTML = `
+            <div class="info-box">
+                <div class="ib-row"><span class="ib-label">Name</span><span class="ib-val">${cr.Name || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Age</span><span class="ib-val">${cr.Age || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Address</span><span class="ib-val">${cr.Address || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Crime</span><span class="ib-val">${cr.Crime || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">IPC Section</span><span class="ib-val">${cr.IPC_Section || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Punishment</span><span class="ib-val">${cr.Punishment || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Police Officer</span><span class="ib-val">${cr.Police_holder_name || '—'}</span></div>
+            </div>`;
+        } else {
+            document.getElementById('mCriminalBox').innerHTML =
+                '<div class="no-data">No criminal record linked to this case.</div>';
+        }
+    } catch(e) {
+        document.getElementById('mCriminalBox').innerHTML =
+            `<div class="no-data">Error loading criminal data: ${e.message}</div>`;
+    }
+
+    // Evidence
+    try {
+        const evidence = dbQuery(
+            `SELECT * FROM Evidence WHERE Case_ID = ?`, [String(c.Case_ID)]
+        );
+        if (evidence.length > 0) {
+            document.getElementById('mEvidenceBox').innerHTML = evidence.map(ev => `
+            <div class="info-box" style="margin-bottom:8px;">
+                <div class="ib-row"><span class="ib-label">Witness Name</span><span class="ib-val">${ev.Criminal_Name || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Age</span><span class="ib-val">${ev.Age || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Address</span><span class="ib-val">${ev.Address || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Contact</span><span class="ib-val">${ev.Contact_Number || '—'}</span></div>
+                <div class="ib-row"><span class="ib-label">Evidence</span><span class="ib-val">${ev.Evidence || '—'}</span></div>
+            </div>`).join('');
+        } else {
+            document.getElementById('mEvidenceBox').innerHTML =
+                '<div class="no-data">No evidence records on file for this case.</div>';
+        }
+    } catch(e) {
+        document.getElementById('mEvidenceBox').innerHTML =
+            `<div class="no-data">Error loading evidence: ${e.message}</div>`;
+    }
+
+    // Hearing schedule
+    try {
+        const schedules = dbQuery(`
+            SELECT cs.*, cl.Name AS clerk_name
+            FROM case_schedule cs
+            LEFT JOIN clerk cl ON cs.clerk_id = cl.User_ID
+            WHERE cs.Case_id = ?
+            ORDER BY cs.date ASC, cs.start_time ASC
+        `, [c.Case_ID]);
+
+        if (schedules.length > 0) {
+            document.getElementById('mScheduleList').innerHTML = schedules.map(s => {
+                const dotClass = s.status === 'Completed' ? 'hdot-completed' : 'hdot-scheduled';
+                const badge = s.status === 'Completed'
+                    ? `<span class="badge badge-green">Completed</span>`
+                    : `<span class="badge badge-blue">Scheduled</span>`;
+                const timeStr = s.start_time + (s.end_time ? ' → ' + s.end_time : '');
+                const videoLink = s.Video_id
+                    ? ` &nbsp;<a href="${s.Video_id}" target="_blank" style="color:#0066cc;font-size:12px;">🔗 Join</a>`
+                    : '';
+                return `<div class="hearing-row">
+                    <div class="hearing-dot ${dotClass}"></div>
+                    <div class="hearing-date">${s.date}</div>
+                    <div class="hearing-time">${timeStr}${videoLink}</div>
+                    <div style="color:#888;font-size:12px;">${s.clerk_name ? 'Clerk: ' + s.clerk_name : ''}</div>
+                    <div class="hearing-status">${badge}</div>
+                </div>`;
+            }).join('');
+        } else {
+            document.getElementById('mScheduleList').innerHTML =
+                '<div class="no-data">No hearings scheduled for this case.</div>';
+        }
+    } catch(e) {
+        document.getElementById('mScheduleList').innerHTML =
+            `<div class="no-data">Error loading schedule: ${e.message}</div>`;
+    }
+
+    document.getElementById('caseModalOverlay').classList.add('open');
+    document.getElementById('caseModal').scrollTop = 0;
+}
+
+function closeModal() {
+    document.getElementById('caseModalOverlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+    if (e.target === document.getElementById('caseModalOverlay')) closeModal();
+}
+// ESC key closes modal
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 </script>
 
 </body>

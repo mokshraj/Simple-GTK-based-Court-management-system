@@ -4,24 +4,21 @@
 window._db = null;
 
 window.initDB = async function initDB() {
-    // Return existing database if already initialized
-    if (window._db && typeof window._db.prepare === 'function') {
-        console.log("Returning existing database connection");
-        return window._db;
-    }
+    // Always reload fresh — never use cached DB so updates are always picked up
+    window._db = null;
 
     try {
         console.log("Initializing SQL.js...");
-        
+
         // Initialize SQL.js
         const SQL = await initSqlJs({
             locateFile: file => `https://unpkg.com/sql.js@1.10.3/dist/${file}`
         });
 
         console.log("Loading database file...");
-        
-        // Load the database file
-        const response = await fetch("../Judgment.db");
+
+        // Cache-busting timestamp forces browser to fetch latest .db file every time
+        const response = await fetch("../Judgment.db?v=" + Date.now());
         console.log("Response status:", response.status);
 
         if (!response.ok) {
@@ -32,11 +29,11 @@ window.initDB = async function initDB() {
         console.log("Buffer size:", arrayBuffer.byteLength, "bytes");
 
         const uint8Array = new Uint8Array(arrayBuffer);
-        
+
         // Verify it's a SQLite database
         const header = String.fromCharCode(...uint8Array.slice(0, 16));
         console.log("File header:", header);
-        
+
         if (!header.startsWith("SQLite format 3")) {
             throw new Error("File is not a valid SQLite database");
         }
@@ -45,7 +42,7 @@ window.initDB = async function initDB() {
         window._db = new SQL.Database(uint8Array);
         console.log("Database object created:", typeof window._db);
         console.log("Database prepare function:", typeof window._db.prepare);
-        
+
         return window._db;
     } catch (error) {
         console.error("Database initialization error:", error);
@@ -54,25 +51,29 @@ window.initDB = async function initDB() {
 }
 
 // Main dbQuery - supports both patterns for backward compatibility
-window.dbQuery = function dbQuery(sql, params = [], dbParam = null) {
-    // Handle the old pattern: dbQuery(db, sql, params)
-    let actualDb = window._db;
-    let actualSql = sql;
-    let actualParams = params;
-    
-    if (dbParam !== null || (typeof sql === 'object' && sql !== null && typeof sql.prepare === 'function')) {
-        // Old pattern: first argument is the database object
-        actualDb = (typeof sql === 'object' && sql !== null && typeof sql.prepare === 'function') ? sql : dbParam;
-        actualSql = (typeof sql === 'object' && sql !== null && typeof sql.prepare === 'function') ? params : sql;
-        actualParams = (typeof sql === 'object' && sql !== null && typeof sql.prepare === 'function') ? (params || []) : (dbParam || []);
+// Pattern A (new): dbQuery(sqlString, paramsArray)
+// Pattern B (old): dbQuery(dbObject, sqlString, paramsArray)
+window.dbQuery = function dbQuery(sqlOrDb, paramsOrSql = [], sqlParamsOrNull = null) {
+    let actualDb, actualSql, actualParams;
+
+    if (typeof sqlOrDb === 'object' && sqlOrDb !== null && typeof sqlOrDb.prepare === 'function') {
+        // Pattern B: first arg is a db object
+        actualDb     = sqlOrDb;
+        actualSql    = paramsOrSql;
+        actualParams = sqlParamsOrNull || [];
+    } else {
+        // Pattern A: first arg is a SQL string
+        actualDb     = window._db;
+        actualSql    = sqlOrDb;
+        actualParams = paramsOrSql || [];
     }
-    
+
     // Make sure database is initialized
     if (!actualDb || typeof actualDb.prepare !== 'function') {
         console.error("Database object is invalid. Type:", typeof actualDb);
         throw new Error("Database not properly initialized. Call initDB() first.");
     }
-    
+
     let stmt = null;
     try {
         stmt = actualDb.prepare(actualSql);
