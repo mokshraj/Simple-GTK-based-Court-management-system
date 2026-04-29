@@ -12,5 +12,9 @@
         "vector": "c"
     },
     "editor.suggest.showFolders": true,
-    "explorer.compactFolders": false
+    "explorer.compactFolders": false,
+    "[go]": {
+        "editor.defaultFormatter": "golang.go"
+    },
+    "debug.onTaskErrors": "debugAnyway"
 }

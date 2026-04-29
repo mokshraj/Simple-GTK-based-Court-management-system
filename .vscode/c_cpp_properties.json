@@ -20,7 +20,9 @@
                 "/usr/include/libmount",
                 "/usr/include/blkid",
                 "/usr/include/sysprof-6",
-                "/usr/include/gstreamer-1.0"
+                "/usr/include/gstreamer-1.0",
+                "/usr/include/libsoup-3.0",
+                "/usr/include/json-glib-1.0"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

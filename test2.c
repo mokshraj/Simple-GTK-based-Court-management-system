@@ -1,67 +1,64 @@
-#include <gtk/gtk.h>
+#include <libsoup/soup.h>
+// Websocket handler functions :::{
 
-/* -------- SETUP: create UI -------- */
-void setup_cb(GtkSignalListItemFactory *factory,
-              GtkListItem *list_item,
-              gpointer user_data)
-{
-    GtkWidget *label = gtk_label_new(NULL);
-    gtk_list_item_set_child(list_item, label);
-}
+    // Function Declarartions :::{
+        void web_handler_on_close(SoupWebsocketConnection*,gpointer);
+        void web_handler(GObject*,GAsyncResult*,gpointer);
+        void web_handler_message(SoupWebsocketConnection*,SoupWebsocketDataType,GBytes*,gpointer);
+    // }
 
-/* -------- BIND: assign data -------- */
-void bind_cb(GtkSignalListItemFactory *factory,
-             GtkListItem *list_item,
-             gpointer user_data)
-{
-    GtkWidget *label = gtk_list_item_get_child(list_item);
+    // Function Construction :::{
 
-    const char *text = gtk_string_object_get_string(
-        GTK_STRING_OBJECT(gtk_list_item_get_item(list_item)));
+        // Websocket Connection Function :::{
+            void web_handler(GObject *session ,GAsyncResult *async_result,gpointer loop){
+                GError *error = NULL;
+                SoupWebsocketConnection *connection = soup_session_websocket_connect_finish(SOUP_SESSION(session),async_result,&error);
+                if(error){
+                    g_printerr("Websocket connection Error : \n%s\n%d,",error->message,error->code);
+                    g_error_free(error);
+                    g_main_loop_quit((GMainLoop *)loop);
+                }
+                else{
+                    g_print("\nWebsocket connected !");
+                    soup_websocket_connection_send_text(connection,"hello");
+                    g_signal_connect(connection,"closed",G_CALLBACK(web_handler_on_close),loop);
+                    g_signal_connect(connection,"message",G_CALLBACK(web_handler_message),NULL);
+                    // soup_websocket_connection_close(connection,SOUP_WEBSOCKET_CLOSE_NORMAL,NULL);
+                }
+            }
+        // }
 
-    gtk_label_set_text(GTK_LABEL(label), text);
-}
+        // Websocket Message Handling function :::{
+            void web_handler_message(SoupWebsocketConnection *connection,SoupWebsocketDataType type,GBytes* message,gpointer data){
+                soup_websocket_connection_close(connection,SOUP_WEBSOCKET_CLOSE_NORMAL,NULL);
+            }
+        // }
 
-/* -------- MAIN -------- */
-static void activate(GtkApplication *app, gpointer data)
-{
-    GtkWidget *window = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(window), "Factory Example");
-    gtk_window_set_default_size(GTK_WINDOW(window), 300, 200);
+        // Websocket On close Gmainloop closing function :::{
+            void web_handler_on_close(SoupWebsocketConnection *connection,gpointer loop){
+                g_print("\nWebSocket closed !");
+                g_object_unref(connection);
+                g_main_loop_quit((GMainLoop*)loop);
+            }
+        // }
 
-    /* 1. Create data model */
-    const char *names[] = {"Alice", "Bob", "Charlie"};
-    GListStore *store = g_list_store_new(GTK_TYPE_STRING_OBJECT);
+    // }
 
-    for (int i = 0; i < 3; i++) {
-        g_list_store_append(store,
-            gtk_string_object_new(names[i]));
-    }
+// }
 
-    /* 2. Create factory */
-    GtkListItemFactory *factory =
-    gtk_signal_list_item_factory_new();
-
-    g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
-    g_signal_connect(factory, "bind", G_CALLBACK(bind_cb), NULL);
-
-    /* 3. Create list view */
-    GtkWidget *list =
-        gtk_list_view_new(
-            GTK_SELECTION_MODEL(gtk_single_selection_new(G_LIST_MODEL(store))),
-            GTK_LIST_ITEM_FACTORY(factory)
-        );
-
-    gtk_window_set_child(GTK_WINDOW(window), list);
-    gtk_window_present(GTK_WINDOW(window));
-}
-
-int main(int argc, char **argv)
-{
-    GtkApplication *app =
-        gtk_application_new("com.example.factory", G_APPLICATION_DEFAULT_FLAGS);
-
-    g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-
-    return g_application_run(G_APPLICATION(app), argc, argv);
+int main(){
+    GMainLoop *loop =  g_main_loop_new(NULL,FALSE);
+    SoupSession *session = soup_session_new();
+    SoupMessage *session_message = soup_message_new("GET","ws://localhost:1755/test?role=Sr2Br");
+    // GCancellable *cancel;
+    soup_session_websocket_connect_async(session,session_message,NULL,NULL,G_PRIORITY_DEFAULT,NULL,web_handler,loop);
+    g_main_loop_run(loop);
+    // GInputStream *msg = g_memory_input_stream_new_from_data("msg",-1,NULL);
+    // soup_message_set_request_body(session_message,"msg",msg,-1);
+    g_object_unref(session);
+    g_object_unref(session_message);
+    // g_object_unref(msg);
+    // g_object_unref(cancel);
+    g_main_loop_unref(loop);
+    return 0;
 }

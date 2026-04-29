@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <video id="video" autoplay playsinline></video>
+  <button onclick="connect()">Connect</button>
+  <button onclick="checkCamera()">Check Camera</button>
+  <input type="text" id="msgInput" placeholder="Type a message">
+  <button onclick="sendMsg()">Send Message</button>
+  <div id="log"></div>
+
+  <script>
+    let pc,ws;
+
+    function log(msg) {
+      document.getElementById("log").innerHTML += msg + "<br>";
+    }
+
+    function connect() {
+      ws = new WebSocket("ws://localhost:1755/test?role=Br2Sr");
+
+      ws.onopen    = () => log("Connected");
+      ws.onmessage = async (e) => {
+        log("Received: " + e.data);
+        try {
+          const msg = JSON.parse(e.data);
+
+          if (msg.type === "start") {
+            log("Server requested camera...");
+            startCamera();
+          } else if (msg.type === "stop") {
+            stopCamera();
+          } else if (msg.type === "answer") {
+            await pc.setRemoteDescription(msg);
+          } else if (msg.type === "ice") {
+            await pc.addIceCandidate(msg.candidate);
+          }
+        } catch (err) {
+          console.log("Not JSON: " + err);
+        }
+      };
+      ws.onclose   = () => log("Disconnected");
+      ws.onerror   = (e) => log("Error: " + e);
+    }
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true ,audio: true});
+        document.getElementById("video").srcObject = stream;
+        log("Camera started");
+        pc = new RTCPeerConnection();
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+        pc.onicecandidate = (e) => {
+            if (e.candidate)
+                ws.send(JSON.stringify({ type: "ice", candidate: e.candidate }));
+        };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        ws.send(JSON.stringify({ type: "offer", sdp: offer.sdp }));
+      } catch (err) {
+        log("Camera error: " + err);
+      }
+    }
+    function checkCamera() {
+      const video = document.getElementById("video");
+      const stream = video.srcObject || video.mozSrcObject || video.webkitSrcObject || null;
+      if (stream && stream.getVideoTracks && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].readyState === "live") {
+        log("Camera is running");
+      } else {
+        log("Camera is not running");
+      }
+    }
+    function stopCamera() {
+      const video = document.getElementById("video");
+      const stream = video.srcObject;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        log("Camera stopped");
+      } else {
+        log("No camera to stop");
+      }
+    }
+    function sendMsg() {
+      const msg = document.getElementById("msgInput").value;
+      if (msg) {
+        ws.send(JSON.stringify({ type: "msg", data: msg }));
+        document.getElementById("msgInput").value = "";
+      } else {
+        log("No message to send");
+      }
+    }
+  </script>
+</body>
+</html>
