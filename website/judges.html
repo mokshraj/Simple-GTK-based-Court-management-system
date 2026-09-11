@@ -7,8 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
-<script src="db.js"></script>
+<script src="vendor/sql-wasm.js"
+        integrity="sha256-VYpyw6s0FdDm0kPP0j+dYVQ2ANWQVLS3uNo81l9rn9Q="
+        crossorigin="anonymous"></script>
+<!-- Synchronous load so initDB is defined before inline scripts run -->
+<script src="db.v2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
@@ -452,7 +455,7 @@
     gap: 16px;
     margin-bottom: 20px;
   }
-  .detail-item { }
+  /* .detail-item { } */
   .detail-label {
     font-size: 11px;
     text-transform: uppercase;
@@ -646,7 +649,7 @@
   </div>
 </div>
 
-<script>
+<script defer>
 Chart.defaults.font.family = "'Jost', sans-serif";
 Chart.defaults.color = '#6b7280';
 

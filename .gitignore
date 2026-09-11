@@ -1,0 +1,48 @@
+# Plans folder
+plans/
+
+# VSCode settings
+.vscode/
+
+# Roo Code
+.roo/
+
+# SSL certificates
+*.pem
+cert.pem
+key.pem
+
+# Compiled binaries
+main
+*.o
+*.out
+*.exe
+
+# Recordings
+recordings/
+Streamer_tests/
+
+# Cases data
+Cases/
+
+# Library includes
+liberary includes/
+
+# Vendor files
+website/vendor/
+
+# Schedule files
+Schedule*
+schedule*
+# Output files
+output.txt
+
+# IDE/Editor files
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

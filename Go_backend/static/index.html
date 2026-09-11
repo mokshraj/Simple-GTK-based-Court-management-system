@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTK Broadway Stream</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #1a1a1a; color: #eee; font-family: sans-serif; overflow: hidden; }
+        #container { height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; }
+        iframe { width: 100%; height: 100%; border: none; display: none; background: #1a1a1a; }
+        #loader { text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="loader">
+            <h2>Initializing GTK Instance...</h2>
+            <p id="status">Connecting to session controller...</p>
+        </div>
+        <iframe id="broadway-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+
+    <script>
+        const statusText = document.getElementById('status');
+        const frame = document.getElementById('broadway-frame');
+        const loader = document.getElementById('loader');
+
+        // Each tab gets its own WebSocket -> own Broadway display
+        const socket = new WebSocket(`ws://${window.location.host}/ws`);
+        let displayID = null;
+        let relaySocket = null;
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                statusText.innerText = "Error: " + data.error;
+                return;
+            }
+            if (data.port) {
+                displayID = data.display;
+                // Cache-busting query param forces browser to treat each port as unique
+                const url = `http://${window.location.hostname}:${data.port}/?cb=${data.cacheBust}`;
+                frame.src = url;
+                frame.style.display = "block";
+                loader.style.display = "none";
+                console.log(`[Tab] Loaded Broadway Display :${displayID} on port ${data.port}`);
+
+                // Connect relay for THIS specific tab
+                connectRelay();
+            }
+        };
+
+        function connectRelay() {
+            if (!displayID) return;
+            relaySocket = new WebSocket(`ws://${window.location.host}/relay?role=browser&display=${displayID}`);
+            relaySocket.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                if (msg.type === "open_link" && msg.url) {
+                    window.open(msg.url, "_blank");
+                }
+            };
+            relaySocket.onclose = () => {
+                console.log(`[Tab] Relay for Display :${displayID} closed`);
+            };
+        }
+
+        socket.onclose = () => {
+            if (relaySocket) relaySocket.close();
+            document.body.innerHTML = "<div style='padding:40px; text-align:center;'><h2>Session Terminated</h2><p>The GTK application has been closed on the server.</p></div>";
+        };
+
+        socket.onerror = (e) => {
+            statusText.innerText = "Connection failed. Is the Go server running on port 8000?";
+            console.error("WS Error:", e);
+        };
+
+        // If user closes/refreshes tab, close WS immediately so server cleans up faster
+        window.addEventListener("beforeunload", () => {
+            if (socket) socket.close();
+            if (relaySocket) relaySocket.close();
+        });
+    </script>
+</body>
+</html>

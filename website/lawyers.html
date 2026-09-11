@@ -8,8 +8,11 @@
 </head>
 
 <body>
-    <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
-    <script src="db.js"></script>
+    <script src="vendor/sql-wasm.js"
+            integrity="sha256-VYpyw6s0FdDm0kPP0j+dYVQ2ANWQVLS3uNo81l9rn9Q="
+            crossorigin="anonymous"></script>
+    <!-- Synchronous load so initDB is defined before inline scripts run -->
+    <script src="db.v2.js"></script>
 
 <header>
     <h2 onclick="goBack()" style="cursor:pointer;">⬅ Lawyer Directory</h2>
@@ -67,7 +70,7 @@
 
 </section>
 
-<script>
+<script defer>
 let allLawyers = [];
 let db = null;
 

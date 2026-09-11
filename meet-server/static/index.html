@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Court Video Conference System</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background-color: #f2f2f2;
+    color: #000;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header / Footer ── */
+  header {
+    background: #fff;
+    border-bottom: 2px solid #000;
+    padding: 16px;
+    text-align: center;
+  }
+  header h1 { font-size: 22px; margin-bottom: 4px; }
+  header p  { font-size: 13px; color: #333; }
+
+  footer {
+    background: #fff;
+    border-top: 2px solid #000;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  /* ── Lobby ── */
+  #lobby {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border: 2px solid #000;
+    padding: 40px;
+    width: 420px;
+    text-align: center;
+  }
+  .card .icon { font-size: 40px; margin-bottom: 12px; }
+  .card h3 { font-size: 20px; margin-bottom: 8px; }
+  .card p { font-size: 14px; color: #333; margin-bottom: 20px; }
+  .box {
+    background: #eee;
+    border: 1px solid #000;
+    padding: 10px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    word-break: break-all;
+  }
+  .button {
+    background: #000;
+    color: #fff;
+    border: none;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+  }
+  .button:hover { background: #333; }
+
+  /* ── Room ── */
+  #room {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+  }
+  #status-badge {
+    align-self: center;
+    margin-bottom: 10px;
+    padding: 6px 14px;
+    border: 1px solid #000;
+    background: #fff3cd;
+    font-weight: bold;
+    font-size: 13px;
+  }
+  #status-badge.connected { background: #d4edda; }
+
+  #videos {
+    flex: 1;
+    display: grid;
+    gap: 20px;
+    padding: 20px;
+    background: #fff;
+    border: 2px solid #000;
+    overflow: hidden;
+  }
+
+  .video-tile {
+    position: relative;
+    background: #ddd;
+    border: 2px solid #000;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .video-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .video-tile .label {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    background: #fff;
+    border: 1px solid #000;
+    padding: 4px 8px;
+  }
+
+  /* ── Controls ── */
+  #controls {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  .ctrl-btn {
+    min-width: 100px;
+    height: 45px;
+    font-weight: bold;
+    border: 2px solid #000;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .ctrl-btn.off {
+    background: #f8d7da;
+    color: #721c24;
+    border-color: #dc3545;
+  }
+  .ctrl-btn.end {
+    background: #dc3545;
+    color: #fff;
+    border-color: #dc3545;
+  }
+
+  /* ── Support ── */
+  .support {
+    text-align: center;
+    margin-top: 10px;
+    padding: 10px;
+    border-top: 1px solid #ccc;
+    font-size: 13px;
+  }
+  .support h3 { font-size: 14px; margin-bottom: 4px; }
+  .support h2 { font-size: 18px; margin-top: 4px; }
+
+  /* Grid layouts */
+  #videos.n1 { grid-template-columns: 1fr; }
+  #videos.n2 { grid-template-columns: 1fr 1fr; }
+  #videos.n3, #videos.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  #videos.n3 .video-tile:first-child { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚖ Court Video Conference</h1>
+  <p>Government of India | Virtual Hearing Room</p>
+</header>
+
+<!-- ──────────────────────────── LOBBY ──────────────────────────── -->
+<div id="lobby">
+  <div class="card">
+    <div class="icon">🏛️</div>
+    <h3>Virtual Hearing Access</h3>
+    <p>Ensure your camera and microphone are functional before joining.</p>
+    <div class="box" id="room-id-label">Loading Hearing Details...</div>
+    <button class="button" id="join-btn">Join Hearing</button>
+  </div>
+</div>
+
+<!-- ──────────────────────────── ROOM ───────────────────────────── -->
+<div id="room">
+  <div id="status-badge">⏳ Initializing Secure Connection...</div>
+
+  <div id="videos" class="n1"></div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="btn-mic">🎙️ Mic On</button>
+    <button class="ctrl-btn" id="btn-cam">📷 Cam On</button>
+    <button class="ctrl-btn end" id="btn-leave">📞 Leave Session</button>
+  </div>
+
+  <div class="support">
+    <h3>Hearing Support</h3>
+    <p>Technical Assistance Line</p>
+    <h2>9233438283</h2>
+  </div>
+</div>
+
+<footer>
+  © 2026 Court Office Automation System, Government of India
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+const roomID   = new URLSearchParams(location.search).get('room');
+let   myID     = null;
+let   ws       = null;
+let   localStream = null;
+const peers    = {};          // peerID → RTCPeerConnection
+const streams  = {};          // peerID → MediaStream
+let   micOn    = true;
+let   camOn    = true;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOM refs
+// ─────────────────────────────────────────────────────────────────────────────
+const $lobby       = document.getElementById('lobby');
+const $room        = document.getElementById('room');
+const $videos      = document.getElementById('videos');
+const $btnMic      = document.getElementById('btn-mic');
+const $btnCam      = document.getElementById('btn-cam');
+const $statusBadge = document.getElementById('status-badge');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lobby init
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('room-id-label').textContent =
+  roomID ? `Hearing ID: ${roomID}` : '⚠ No Hearing ID provided';
+
+document.getElementById('join-btn').addEventListener('click', async () => {
+  if (!roomID) { alert('No Hearing ID — use ?room=<id>'); return; }
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    enterRoom();
+  } catch (e) {
+    alert('Camera/mic access denied: ' + e.message);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enter room
+// ─────────────────────────────────────────────────────────────────────────────
+function enterRoom() {
+  $lobby.style.display = 'none';
+  $room.style.display  = 'flex';
+  addVideoTile('local', localStream, 'You (Applicant)');
+  connectWS();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WebSocket
+// ─────────────────────────────────────────────────────────────────────────────
+function connectWS() {
+  const wsURL = `ws://${location.host}/ws?role=browser&room=${roomID}`;
+  ws = new WebSocket(wsURL);
+
+  ws.onopen = () => {
+    $statusBadge.textContent = '✅ Secure Connection Established';
+    $statusBadge.className = 'connected';
+  };
+
+  ws.onclose = () => {
+    $statusBadge.textContent = '❌ Connection Closed';
+    $statusBadge.className = '';
+  };
+
+  ws.onerror = (e) => {
+    console.error('WS error', e);
+    $statusBadge.textContent = '⚠ Connection Error';
+    $statusBadge.className = '';
+  };
+
+  ws.onmessage = async (evt) => {
+    const msg = JSON.parse(evt.data);
+    await handleServerMsg(msg);
+  };
+}
+
+function send(type, payload) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type, payload }));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Server message dispatch
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleServerMsg(msg) {
+  switch (msg.type) {
+
+    case 'welcome':
+      myID = msg.payload.peer_id;
+      const existingPeers = (msg.payload.peers || []).filter(id => id !== myID);
+      // Newcomer sends offers to everyone already in the room
+      for (const pid of existingPeers) {
+        await createOffer(pid);
+      }
+      break;
+
+    case 'offer':
+      await handleOffer(msg.payload);
+      break;
+
+    case 'answer':
+      await handleAnswer(msg.payload);
+      break;
+
+    case 'candidate':
+      await handleCandidate(msg.payload);
+      break;
+
+    case 'peer_left':
+      removePeer(msg.payload.peer_id);
+      break;
+
+    case 'room_closed':
+      alert('This hearing has ended.');
+      setTimeout(() => location.href = '/', 2000);
+      break;
+
+    case 'error':
+      console.error('Server error:', msg.error);
+      break;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WebRTC helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const ICE_CONFIG = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+};
+
+function createPC(peerID) {
+  if (peers[peerID]) {
+    peers[peerID].close();
+  }
+  const pc = new RTCPeerConnection(ICE_CONFIG);
+  peers[peerID] = pc;
+
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) send('candidate', { to: peerID, candidate });
+  };
+
+  pc.ontrack = ({ streams: [stream] }) => {
+    if (!streams[peerID]) {
+      streams[peerID] = stream;
+      addVideoTile(peerID, stream, `Participant ${peerID.slice(0, 6)}`);
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      removePeer(peerID);
+    }
+  };
+
+  return pc;
+}
+
+async function createOffer(peerID) {
+  const pc = createPC(peerID);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  send('offer', { to: peerID, sdp: offer.sdp });
+}
+
+async function handleOffer({ from, sdp }) {
+  const pc = createPC(from);
+  await pc.setRemoteDescription({ type: 'offer', sdp });
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  send('answer', { to: from, sdp: answer.sdp });
+}
+
+async function handleAnswer({ from, sdp }) {
+  const pc = peers[from];
+  if (pc) await pc.setRemoteDescription({ type: 'answer', sdp });
+}
+
+async function handleCandidate({ from, candidate }) {
+  const pc = peers[from];
+  if (pc && candidate) {
+    try { await pc.addIceCandidate(candidate); } catch(e) {}
+  }
+}
+
+function removePeer(peerID) {
+  if (peers[peerID]) { peers[peerID].close(); delete peers[peerID]; }
+  delete streams[peerID];
+  const tile = document.getElementById('tile-' + peerID);
+  if (tile) tile.remove();
+  updateGrid();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Video tiles
+// ─────────────────────────────────────────────────────────────────────────────
+function addVideoTile(id, stream, label) {
+  if (document.getElementById('tile-' + id)) return;
+  const tile = document.createElement('div');
+  tile.className = 'video-tile';
+  tile.id = 'tile-' + id;
+
+  const video = document.createElement('video');
+  video.autoplay = true;
+  video.playsInline = true;
+  if (id === 'local') video.muted = true;
+  video.srcObject = stream;
+
+  const lbl = document.createElement('div');
+  lbl.className = 'label';
+  lbl.textContent = label;
+
+  tile.appendChild(video);
+  tile.appendChild(lbl);
+  $videos.appendChild(tile);
+  updateGrid();
+}
+
+function updateGrid() {
+  const n = $videos.children.length;
+  $videos.className = `n${Math.min(n, 4)}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Controls
+// ─────────────────────────────────────────────────────────────────────────────
+$btnMic.addEventListener('click', () => {
+  micOn = !micOn;
+  localStream.getAudioTracks().forEach(t => t.enabled = micOn);
+  $btnMic.classList.toggle('off', !micOn);
+  $btnMic.textContent = micOn ? '🎙️ Mic On' : '🔇 Mic Off';
+});
+
+$btnCam.addEventListener('click', () => {
+  camOn = !camOn;
+  localStream.getVideoTracks().forEach(t => t.enabled = camOn);
+  $btnCam.classList.toggle('off', !camOn);
+  $btnCam.textContent = camOn ? '📷 Cam On' : '🚫 Cam Off';
+});
+
+document.getElementById('btn-leave').addEventListener('click', () => {
+  if (ws) ws.close();
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  Object.values(peers).forEach(pc => pc.close());
+  location.href = '/';
+});
+
+window.addEventListener('beforeunload', () => {
+  if (ws) ws.close();
+});
+</script>
+</body>
+</html>

@@ -5,27 +5,39 @@
 #include "clock.h"
 #include <gio/gio.h>
 #include "file_select.h"
+#include <libsoup/soup.h>
+#include <json-glib/json-glib.h>
+
+static gboolean use_broadway = FALSE;
 //
 //
 int main(int argc, char **argv)
 {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "web") == 0 || strcmp(argv[i], "--web") == 0) {
+            use_broadway = TRUE;
+            g_print("Using Broadway URL opener\n");
+            break;
+        }
+    }
+    
     pthread_attr_t dattr;
     pthread_attr_init(&dattr);
     pthread_attr_setdetachstate(&dattr, PTHREAD_CREATE_DETACHED);
     pthread_t a;
     int *return_int = g_new0(int, 1);
-    // gui.c:
     pthread_create(&a, &dattr, (void *(*)(void *))creating_database, return_int);
+    
+    const char *app_id = g_getenv("GTK_APP_ID");
+    if (!app_id) app_id = "org.gtk.example";
+    
     GtkApplication *app;
     int status;
+    app = gtk_application_new(app_id, G_APPLICATION_DEFAULT_FLAGS);
     
-    // Create GTK application
-    app = gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
-    
-    // Connect activation handler and run application
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     
-    status = g_application_run(G_APPLICATION(app), argc, argv);
+    status = g_application_run(G_APPLICATION(app), 0, NULL);
     g_object_unref(app);
     pthread_attr_destroy(&dattr);
     
@@ -90,15 +102,15 @@ void make_sensitive(GtkWidget *widget, gpointer data){
     }
 }
 //
-void open_google_meet() {
-#if defined(_WIN32) || defined(_WIN64)
-    system("start https://meet.google.com/new");
-#elif defined(__APPLE__)
-    system("open https://meet.google.com/new");
-#else
-    system("xdg-open https://meet.google.com/new");
-#endif
-}
+// void open_google_meet() {
+// #if defined(_WIN32) || defined(_WIN64)
+//     system("start https://meet.google.com/new");
+// #elif defined(__APPLE__)
+//     system("open https://meet.google.com/new");
+// #else
+//     system("xdg-open https://meet.google.com/new");
+// #endif
+// }
 //
 /* Callback for submit button - handles login verification */
 void Login(GtkButton *widget, gpointer user_data){
@@ -320,9 +332,9 @@ void activate(GtkApplication *app, gpointer user_data)
     check4 = gtk_button_new_with_label("Schedules");
     g_signal_connect(check4, "clicked",G_CALLBACK(gui_open_file),g_strdup("Schedule"));
     gtk_grid_attach(GTK_GRID(grid), check4, 0, 4, 2, 1);
-    check4 = gtk_button_new_with_label("AI Bot");
-    g_signal_connect(check4, "clicked",G_CALLBACK(open_python_file),g_strdup("newcahtbot.py"));
-    gtk_grid_attach(GTK_GRID(grid), check4, 0, 5, 2, 1);
+    // check4 = gtk_button_new_with_label("AI Bot");
+    // g_signal_connect(check4, "clicked",G_CALLBACK(open_python_file),g_strdup("newcahtbot.py"));
+    // gtk_grid_attach(GTK_GRID(grid), check4, 0, 5, 2, 1);
     // Free login data when window is destroyed
     g_signal_connect_swapped(window, "destroy", G_CALLBACK(g_free), login);
 }
@@ -773,52 +785,502 @@ static void update_video_id(GtkWidget *widget,gpointer data){
     g_free(sql);
     sqlite3_close(db);
 }
-static void Video_hearing_start(GtkWidget *widget,gpointer data){
-    GtkWidget *Parent = GTK_WIDGET(gtk_widget_get_root(GTK_WIDGET(widget)));
-    GtkWidget *Dialog = gtk_window_new();
-    GtkWidget *Entry = gtk_entry_new();
-    GtkWidget *Button = gtk_button_new_with_label("Ok");
-    GtkWidget *Box = gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
-    g_object_set_data(G_OBJECT(Button),"Schedule_id",data);
-    g_signal_connect(GTK_BUTTON(Button),"clicked",G_CALLBACK(update_video_id),Entry);
-    gtk_entry_set_placeholder_text(GTK_ENTRY(Entry),"Enter meet code ");
-    gtk_window_set_title(GTK_WINDOW(Dialog),"Enter Meeting Link");
-    gtk_window_set_transient_for(GTK_WINDOW(Dialog),GTK_WINDOW(Parent));
-    gtk_window_set_modal(GTK_WINDOW(Dialog),TRUE);
-    gtk_box_append(GTK_BOX(Box),Entry);
-    gtk_box_append(GTK_BOX(Box),Button);
-    gtk_window_set_child(GTK_WINDOW(Dialog),Box);
-    open_google_meet();
-    gtk_window_present(GTK_WINDOW(Dialog));
+static int case_callback(void *data, int argc, char **argv, char **azColName) {
+    if (argc > 0 && argv[0]) {
+        int *case_id = (int *)data;
+        *case_id = atoi(argv[0]);  // string → int
+    }
+    return 0;
 }
-static void Video_hearing_open(GtkWidget *widget,gpointer data){
+// static void Video_hearing_start(GtkWidget *widget,gpointer data){
+//     int case_id = -1;
+//     char *err_msg = NULL;
+
+//     sqlite3 *db;
+//     int rc = sqlite3_open("Judgment.db", &db);
+
+//     if (rc != SQLITE_OK) {
+//         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+//         return;
+//     }
+
+//     // 🔹 schedule_id (assuming data is int*)
+//     int schedule_id = *(int *)data;
+
+//     char *sql = g_strdup_printf(
+//         "SELECT case_id FROM case_schedule WHERE schedule_id = %d;",
+//         schedule_id
+//     );
+
+//     // 🔹 IMPORTANT: pass callback
+//     rc = sqlite3_exec(db, sql, case_callback, &case_id, &err_msg);
+
+//     if (rc != SQLITE_OK) {
+//         printf("SQL error: %s\n", err_msg);
+//         sqlite3_free(err_msg);
+//     } else {
+//         printf("Case ID: %d\n", case_id);
+//     }
+
+//     g_free(sql);
+//     sqlite3_close(db);
+//     char * path = g_strdup_printf("%s/Cases/%d/%s/",get_executable_folder(),case_id,"recordings");
+//     g_free(path);
+    
+//     system(path);
+//     g_free(path);
+//     GtkWidget *Parent = GTK_WIDGET(gtk_widget_get_root(GTK_WIDGET(widget)));
+//     GtkWidget *Dialog = gtk_window_new();
+//     GtkWidget *Entry = gtk_entry_new();
+//     GtkWidget *Button = gtk_button_new_with_label("Ok");
+//     GtkWidget *Box = gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
+//     g_object_set_data(G_OBJECT(Button),"Schedule_id",data);
+//     g_signal_connect(GTK_BUTTON(Button),"clicked",G_CALLBACK(update_video_id),Entry);
+//     gtk_entry_set_placeholder_text(GTK_ENTRY(Entry),"Enter meet code ");
+//     gtk_window_set_title(GTK_WINDOW(Dialog),"Enter Meeting Link");
+//     gtk_window_set_transient_for(GTK_WINDOW(Dialog),GTK_WINDOW(Parent));
+//     gtk_window_set_modal(GTK_WINDOW(Dialog),TRUE);
+//     gtk_box_append(GTK_BOX(Box),Entry);
+//     gtk_box_append(GTK_BOX(Box),Button);
+//     gtk_window_set_child(GTK_WINDOW(Dialog),Box);
+//     open_google_meet();
+//     gtk_window_present(GTK_WINDOW(Dialog));
+// }
+
+/* ---------- WebSocket helpers (adapted from test2.c) ---------- */
+
+typedef struct {
+    int schedule_id;
+    int case_id;
+    char *recording_path;
+    SoupSession *session;
+    GtkWindow *parent;
+} MeetingStartData;
+
+static void ws_on_closed(SoupWebsocketConnection *conn, gpointer user_data)
+{
+    MeetingStartData *msd = user_data;
+    g_print("WebSocket closed\n");
+
+    if (msd->session)
+        g_object_unref(msd->session);
+    g_free(msd->recording_path);
+    g_free(msd);
+    g_object_unref(conn);
+}
+//* Broadway-compatible URL opener: notifies Go portal instead of system() */
+static void broadway_open_url(const char *url)
+{
+    const char *session_id = g_getenv("SESSION_ID");
+    if (!session_id || !url || *url == '\0') {
+        g_printerr("Cannot open URL: no SESSION_ID or empty URL\n");
+        return;
+    }
+
+    char *encoded = g_uri_escape_string(url, NULL, FALSE);
+    char *notify_url = g_strdup_printf(
+        "https://localhost:1753/notify?id=%s&url=%s",
+        session_id, encoded);
+
+    SoupSession *sess = soup_session_new();
+    SoupMessage *msg = soup_message_new("GET", notify_url);
+    
+    GError *error = NULL;
+    GBytes *response = soup_session_send_and_read(sess, msg, NULL, &error);
+    
+    if (error != NULL) {
+        g_printerr("Failed to notify portal: %s\n", error->message);
+        g_error_free(error);
+    } else {
+        guint status = soup_message_get_status(msg);
+        if (status != 200) {
+            g_printerr("Failed to notify portal: HTTP %u\n", status);
+        } else {
+            g_print("Notified portal to open: %s\n", url);
+        }
+    }
+
+    if (response != NULL)
+        g_bytes_unref(response);
+    
+    g_free(encoded);
+    g_free(notify_url);
+    g_object_unref(msg);
+    g_object_unref(sess);
+}
+
+static void ws_on_message(SoupWebsocketConnection *conn,
+                          SoupWebsocketDataType type,
+                          GBytes *message,
+                          gpointer user_data)
+{
+    MeetingStartData *msd = user_data;
+
+    if (type != SOUP_WEBSOCKET_DATA_TEXT)
+        return;
+
+    gsize size;
+    const char *text = g_bytes_get_data(message, &size);
+    g_print("\n📩 Server: %.*s\n", (int)size, text);
+
+    JsonParser *parser = json_parser_new();
+    GError *error = NULL;
+
+    if (!json_parser_load_from_data(parser, text, size, &error)) {
+        g_printerr("JSON parse error: %s\n", error->message);
+        g_error_free(error);
+        g_object_unref(parser);
+        soup_websocket_connection_close(conn, SOUP_WEBSOCKET_CLOSE_NORMAL, NULL);
+        return;
+    }
+
+    JsonNode *root = json_parser_get_root(parser);
+    if (!JSON_NODE_HOLDS_OBJECT(root)) {
+        g_object_unref(parser);
+        soup_websocket_connection_close(conn, SOUP_WEBSOCKET_CLOSE_NORMAL, NULL);
+        return;
+    }
+
+    JsonObject *obj = json_node_get_object(root);
+    const char *msg_type = NULL;
+
+    if (json_object_has_member(obj, "type"))
+        msg_type = json_object_get_string_member(obj, "type");
+
+    /* Handle the server's meeting_link response */
+    if (msg_type && strcmp(msg_type, "meeting_link") == 0 &&
+        json_object_has_member(obj, "payload")) {
+        
+        JsonObject *payload = json_object_get_object_member(obj, "payload");
+        const char *url = NULL;
+
+        if (json_object_has_member(payload, "url"))
+            url = json_object_get_string_member(payload, "url");
+
+        if (url) {
+            g_print("🔗 Meeting URL: %s\n", url);
+
+            /* Save URL to database as Video_id */
+            sqlite3 *db;
+            int rc = sqlite3_open("Judgment.db", &db);
+            if (rc == SQLITE_OK) {
+                char *sql = g_strdup_printf(
+                    "UPDATE case_schedule SET Video_id = \"%s\" WHERE schedule_id = %d;",
+                    url, msd->schedule_id);
+                char *err_msg = NULL;
+                sqlite3_exec(db, sql, 0, 0, &err_msg);
+                if (err_msg) {
+                    g_printerr("SQL error: %s\n", err_msg);
+                    sqlite3_free(err_msg);
+                }
+                g_free(sql);
+                sqlite3_close(db);
+            }
+
+//             /* Open browser (cross-platform) */
+// #if defined(_WIN32) || defined(_WIN64)
+//             char *cmd = g_strdup_printf("start %s", url);
+// #elif defined(__APPLE__)
+//             char *cmd = g_strdup_printf("open %s", url);
+// #else
+//             char *cmd = g_strdup_printf("xdg-open %s", url);
+// #endif
+//             int ret = system(cmd);
+//             if (ret != 0)
+//                 g_printerr("Failed to open browser (exit code %d)\n", ret);
+//             g_free(cmd);
+                        /* Open in client's browser via Go portal (Broadway-compatible) */
+            if (use_broadway) {
+                broadway_open_url(url);
+            } else {
+                GError *error = NULL;
+                g_app_info_launch_default_for_uri(url, NULL, &error);
+                if (error) {
+                    g_printerr("Failed to open URL: %s\n", error->message);
+                    g_error_free(error);
+                }
+            }
+        }
+    }
+
+    g_object_unref(parser);
+    soup_websocket_connection_close(conn, SOUP_WEBSOCKET_CLOSE_NORMAL, NULL);
+}
+
+static void ws_on_connect(GObject *source_object,
+                          GAsyncResult *res,
+                          gpointer user_data)
+{
+    MeetingStartData *msd = user_data;
+    GError *error = NULL;
+
+    SoupWebsocketConnection *conn = soup_session_websocket_connect_finish(
+        SOUP_SESSION(source_object), res, &error);
+
+    if (error) {
+        g_printerr("❌ WebSocket connection failed: %s\n", error->message);
+        g_error_free(error);
+        if (msd->session) g_object_unref(msd->session);
+        g_free(msd->recording_path);
+        g_free(msd);
+        return;
+    }
+
+    g_print("Connected to meeting server\n");
+
+    g_signal_connect(conn, "message", G_CALLBACK(ws_on_message), msd);
+    g_signal_connect(conn, "closed",  G_CALLBACK(ws_on_closed), msd);
+
+    /* Build JSON: {"type": "open_meeting"} */
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "type");
+    json_builder_add_string_value(builder, "open_meeting");
+    json_builder_end_object(builder);
+
+    JsonGenerator *gen = json_generator_new();
+    json_generator_set_root(gen, json_builder_get_root(builder));
+
+    gsize len;
+    char *json_str = json_generator_to_data(gen, &len);
+
+    soup_websocket_connection_send_text(conn, json_str);
+    g_print("Sent: %s\n", json_str);
+
+    g_free(json_str);
+    g_object_unref(gen);
+    g_object_unref(builder);
+}
+
+typedef struct {
+    char *url;
+} OpenLinkData;
+
+static void open_link_ws_closed(SoupWebsocketConnection *conn, gpointer user_data)
+{
+    OpenLinkData *data = user_data;
+    g_free(data->url);
+    g_free(data);
+    g_object_unref(conn);
+}
+
+static void open_link_ws_connect(GObject *source, GAsyncResult *res, gpointer user_data)
+{
+    OpenLinkData *data = user_data;
+    GError *error = NULL;
+    SoupWebsocketConnection *conn = soup_session_websocket_connect_finish(
+        SOUP_SESSION(source), res, &error);
+
+    if (error) {
+        g_printerr("Link relay connection failed: %s\n", error->message);
+        g_error_free(error);
+        g_free(data->url);
+        g_free(data);
+        return;
+    }
+
+    /* Build JSON: {"type":"open_link","url":"..."} */
+    JsonBuilder *builder = json_builder_new();
+    json_builder_begin_object(builder);
+    json_builder_set_member_name(builder, "type");
+    json_builder_add_string_value(builder, "open_link");
+    json_builder_set_member_name(builder, "url");
+    json_builder_add_string_value(builder, data->url);
+    json_builder_end_object(builder);
+
+    JsonGenerator *gen = json_generator_new();
+    json_generator_set_root(gen, json_builder_get_root(builder));
+    gsize len;
+    char *json_str = json_generator_to_data(gen, &len);
+
+    soup_websocket_connection_send_text(conn, json_str);
+    g_print("Sent link to backend: %s\n", json_str);
+
+    g_free(json_str);
+    g_object_unref(gen);
+    g_object_unref(builder);
+
+    g_signal_connect(conn, "closed", G_CALLBACK(open_link_ws_closed), data);
+    soup_websocket_connection_close(conn, SOUP_WEBSOCKET_CLOSE_NORMAL, NULL);
+}
+
+/* 
+ * Call this from any GTK callback to ask the Go backend to open `url`
+ * in the connected browser.
+ */
+void send_link_to_browser(const char *url)
+{
+    g_return_if_fail(url != NULL);
+
+    SoupSession *session = soup_session_new();
+    soup_session_set_tls_interaction(session, NULL);
+    GTlsInteraction *interaction = NULL;
+    GError *tls_err = NULL;
+    char *cert_path = g_strdup_printf("%s/cert.pem", get_executable_folder());
+    GTlsDatabase *tls_db = g_tls_file_database_new(cert_path, &tls_err);
+    g_free(cert_path);
+    if (tls_db) {
+        soup_session_set_tls_database(session, tls_db);
+        g_object_unref(tls_db);
+    }
+    SoupMessage *msg = soup_message_new("GET", "wss://localhost:1755/relay?role=gui");
+
+    OpenLinkData *data = g_new0(OpenLinkData, 1);
+    data->url = g_strdup(url);
+
+    soup_session_websocket_connect_async(
+        session, msg, NULL, NULL,
+        G_PRIORITY_DEFAULT, NULL,
+        open_link_ws_connect, data);
+
+    g_object_unref(msg);
+    g_object_unref(session);
+}
+
+/* ---------- Modified Video_hearing_start ---------- */
+
+
+static void Video_hearing_start(GtkWidget *widget, gpointer data)
+{
     int schedule_id = *(int *)data;
-    printf("%d",schedule_id);
+    printf("%d", schedule_id);
     fflush(stdout);
-    GtkWidget *Parent = GTK_WIDGET(gtk_widget_get_root(GTK_WIDGET(widget)));
+
+    /* Query case_id from database */
     sqlite3 *db;
     sqlite3_stmt *stmt;
-    char *err_msg = NULL;
-    int rc = sqlite3_open("Judgment.db",&db);
-        if (rc != SQLITE_OK) {
+    int rc = sqlite3_open("Judgment.db", &db);
+    if (rc != SQLITE_OK) {
         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         return;
     }
-    char *sql = g_strdup_printf("SELECT case_schedule.Video_id FROM case_schedule WHERE schedule_id = %d;",schedule_id);
-    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    sqlite3_step(stmt);
-    #if defined(_WIN32) || defined(_WIN64)
-        char *site = g_strdup_printf("start %s",sqlite3_column_text(stmt,0));
-        system(site);
-    #elif defined(__APPLE__)
-        char *site = g_strdup_printf("open %s",sqlite3_column_text(stmt,0));
-        system(site);
-    #else
-        char *site = g_strdup_printf("xdg-open %s",sqlite3_column_text(stmt,0));
-        system(site);
-    #endif
-    g_free(site);
+
+    char *sql = g_strdup_printf(
+        "SELECT case_id FROM case_schedule WHERE schedule_id = %d;", schedule_id);
+
+    int case_id = -1;
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW) {
+        case_id = sqlite3_column_int(stmt, 0);
+    }
+
+    g_free(sql);
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+
+    if (case_id == -1) {
+        g_printerr("Could not find case for schedule %d\n", schedule_id);
+        return;
+    }
+
+    printf("Case ID: %d\n", case_id);
+
+    /* Ensure recordings directory exists */
+    char *path = g_strdup_printf("%s/Cases/%d/recordings/", get_executable_folder(), case_id);
+    ensure_directory_exists(path);
+
+    /* Prepare async data and connect to WebSocket server */
+    MeetingStartData *msd = g_new0(MeetingStartData, 1);
+    msd->schedule_id = schedule_id;
+    msd->case_id = case_id;
+    msd->recording_path = path;
+    msd->parent = GTK_WINDOW(gtk_widget_get_root(widget));
+
+    msd->session = soup_session_new();
+    char *cert_path = g_strdup_printf("%s/cert.pem", get_executable_folder());
+    GError *tls_err = NULL;
+    GTlsDatabase *tls_db = g_tls_file_database_new(cert_path, &tls_err);
+    g_free(cert_path);
+    if (tls_db) {
+        soup_session_set_tls_database(msd->session, tls_db);
+        g_object_unref(tls_db);
+    }
+    SoupMessage *msg = soup_message_new("GET", "wss://localhost:1755/ws?role=client");
+
+    soup_session_websocket_connect_async(
+        msd->session,
+        msg,
+        NULL, NULL,
+        G_PRIORITY_DEFAULT,
+        NULL,
+        ws_on_connect,
+        msd
+    );
+
+    g_object_unref(msg);
+}
+// static void Video_hearing_open(GtkWidget *widget,gpointer data){
+//     int schedule_id = *(int *)data;
+//     printf("%d",schedule_id);
+//     fflush(stdout);
+//     GtkWidget *Parent = GTK_WIDGET(gtk_widget_get_root(GTK_WIDGET(widget)));
+//     sqlite3 *db;
+//     sqlite3_stmt *stmt;
+//     char *err_msg = NULL;
+//     int rc = sqlite3_open("Judgment.db",&db);
+//         if (rc != SQLITE_OK) {
+//         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+//         sqlite3_close(db);
+//         return;
+//     }
+//     char *sql = g_strdup_printf("SELECT case_schedule.Video_id FROM case_schedule WHERE schedule_id = %d;",schedule_id);
+//     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+//     sqlite3_step(stmt);
+//     #if defined(_WIN32) || defined(_WIN64)
+//         char *site = g_strdup_printf("start %s",sqlite3_column_text(stmt,0));
+//         system(site);
+//     #elif defined(__APPLE__)
+//         char *site = g_strdup_printf("open %s",sqlite3_column_text(stmt,0));
+//         system(site);
+//     #else
+//         char *site = g_strdup_printf("xdg-open %s",sqlite3_column_text(stmt,0));
+//         // send_link_to_browser(sqlite3_column_text(stmt,0));
+//         system(site);
+//     #endif
+//     // g_free(site);
+//     g_free(sql);
+//     sqlite3_finalize(stmt);
+//     sqlite3_close(db);
+// }
+
+static void Video_hearing_open(GtkWidget *widget, gpointer data)
+{
+    int schedule_id = *(int *)data;
+    printf("%d", schedule_id);
+    fflush(stdout);
+
+    GtkWindow *parent = GTK_WINDOW(gtk_widget_get_root(widget));
+
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_open("Judgment.db", &db);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return;
+    }
+
+    char *sql = g_strdup_printf(
+        "SELECT Video_id FROM case_schedule WHERE schedule_id = %d;", schedule_id);
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK && sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *url = (const char *)sqlite3_column_text(stmt, 0);
+        if (url && *url) {
+            if (use_broadway) {
+                broadway_open_url(url);
+            } else {
+                GError *error = NULL;
+                g_app_info_launch_default_for_uri(url, NULL, &error);
+                if (error) {
+                    g_printerr("Failed to open URL: %s\n", error->message);
+                    g_error_free(error);
+                }
+            }
+        }
+    }
+
     g_free(sql);
     sqlite3_finalize(stmt);
     sqlite3_close(db);

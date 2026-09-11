@@ -3,91 +3,87 @@
 <body>
   <video id="video" autoplay playsinline></video>
   <button onclick="connect()">Connect</button>
-  <button onclick="checkCamera()">Check Camera</button>
-  <input type="text" id="msgInput" placeholder="Type a message">
-  <button onclick="sendMsg()">Send Message</button>
   <div id="log"></div>
 
   <script>
-    let pc,ws;
+    let pc, ws;
+    const relay = new WebSocket("ws://localhost:1755/relay?role=browser");
 
+    relay.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "open_link" && msg.url) {
+            window.open(msg.url, "_blank");
+        }
+    };
     function log(msg) {
       document.getElementById("log").innerHTML += msg + "<br>";
+      console.log(msg);
     }
 
     function connect() {
       ws = new WebSocket("ws://localhost:1755/test?role=Br2Sr");
+      ws.onopen  = () => log("WS Connected");
+      ws.onclose = () => log("WS Disconnected");
+      ws.onerror = (e) => log("WS Error: " + e);
 
-      ws.onopen    = () => log("Connected");
       ws.onmessage = async (e) => {
-        log("Received: " + e.data);
-        try {
-          const msg = JSON.parse(e.data);
+        const msg = JSON.parse(e.data);
+        log("Got: " + msg.type);
 
-          if (msg.type === "start") {
-            log("Server requested camera...");
-            startCamera();
-          } else if (msg.type === "stop") {
-            stopCamera();
-          } else if (msg.type === "answer") {
-            await pc.setRemoteDescription(msg);
-          } else if (msg.type === "ice") {
-            await pc.addIceCandidate(msg.candidate);
+        if (msg.type === "start") {
+          await startCamera();
+
+        } else if (msg.type === "answer") {
+          await pc.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: msg.sdp }));
+          log("Answer applied");
+
+        } else if (msg.type === "ice") {
+          if (msg.candidate && msg.candidate !== "") {
+            await pc.addIceCandidate(new RTCIceCandidate({
+                candidate: msg.candidate,
+                sdpMLineIndex: msg.sdpMLineIndex
+            }));
+            log("ICE added");
           }
-        } catch (err) {
-          console.log("Not JSON: " + err);
         }
       };
-      ws.onclose   = () => log("Disconnected");
-      ws.onerror   = (e) => log("Error: " + e);
     }
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true ,audio: true});
-        document.getElementById("video").srcObject = stream;
-        log("Camera started");
-        pc = new RTCPeerConnection();
-        stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
-        pc.onicecandidate = (e) => {
-            if (e.candidate)
-                ws.send(JSON.stringify({ type: "ice", candidate: e.candidate }));
-        };
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        ws.send(JSON.stringify({ type: "offer", sdp: offer.sdp }));
-      } catch (err) {
-        log("Camera error: " + err);
-      }
-    }
-    function checkCamera() {
-      const video = document.getElementById("video");
-      const stream = video.srcObject || video.mozSrcObject || video.webkitSrcObject || null;
-      if (stream && stream.getVideoTracks && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].readyState === "live") {
-        log("Camera is running");
-      } else {
-        log("Camera is not running");
-      }
-    }
-    function stopCamera() {
-      const video = document.getElementById("video");
-      const stream = video.srcObject;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        video.srcObject = null;
-        log("Camera stopped");
-      } else {
-        log("No camera to stop");
-      }
-    }
-    function sendMsg() {
-      const msg = document.getElementById("msgInput").value;
-      if (msg) {
-        ws.send(JSON.stringify({ type: "msg", data: msg }));
-        document.getElementById("msgInput").value = "";
-      } else {
-        log("No message to send");
-      }
+    async function startCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      document.getElementById("video").srcObject = stream;
+      log("Camera started");
+
+      pc = new RTCPeerConnection({
+          iceServers: [
+              { urls: "stun:stun.l.google.com:19302" }
+          ],
+          iceCandidatePoolSize: 10,
+          iceTransportPolicy: "all"
+      });
+      pc.onicegatheringstatechange = () => log("Gather state: " + pc.iceGatheringState);
+
+      // Remove the double pc.onicecandidate and use this single, clean version
+      pc.onicecandidate = (e) => {
+        if (e.candidate && e.candidate.candidate !== "") {
+          // Send the whole candidate object which includes sdpMLineIndex and sdpMid
+          ws.send(JSON.stringify({ 
+            type: "ice", 
+            candidate: e.candidate 
+          }));
+          log("ICE sent");
+        }
+      };
+
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+      pc.oniceconnectionstatechange = () => log("ICE state: " + pc.iceConnectionState);
+      pc.onconnectionstatechange    = () => log("Conn state: " + pc.connectionState);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      ws.send(JSON.stringify({ type: "offer", sdp: offer.sdp }));
+      log("Offer sent");
     }
   </script>
 </body>

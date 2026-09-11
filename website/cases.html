@@ -81,8 +81,11 @@
 </head>
 
 <body>
-    <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
-    <script src="db.js"></script>
+    <script src="vendor/sql-wasm.js"
+            integrity="sha256-VYpyw6s0FdDm0kPP0j+dYVQ2ANWQVLS3uNo81l9rn9Q="
+            crossorigin="anonymous"></script>
+    <!-- Synchronous load so initDB is defined before the inline script runs -->
+    <script src="db.v2.js"></script>
 
 <header>
     <h2 onclick="window.location.href='index.html'" style="cursor:pointer;">⬅ All Cases</h2>
@@ -203,7 +206,7 @@
   </div>
 </div>
 
-<script>
+<script defer>
 // Maps every possible stored value → canonical 2-letter key
 const KEY_NORM = {
     'ci':'CI','cr':'CR','fm':'FM','co':'CO','tx':'TX',
@@ -223,7 +226,24 @@ function typeDisplayName(key) {
 
 let allCases = [];
 
-(async () => {
+// Wait for both DOMContentLoaded and initDB availability before running.
+// This is defensive against browsers that execute the inline deferred script
+// before the external deferred db.v2.js has finished parsing.
+function whenReady(cb) {
+    const start = Date.now();
+    (function tick() {
+        if (typeof initDB === 'function' && typeof dbQuery === 'function'
+            && document.readyState !== 'loading') {
+            return cb();
+        }
+        if (Date.now() - start > 10000) {
+            return console.error('[cases.html] initDB/dbQuery never became available');
+        }
+        setTimeout(tick, 10);
+    })();
+}
+
+whenReady(async () => {
     try {
         await initDB();
 
@@ -286,7 +306,7 @@ let allCases = [];
         document.getElementById("dbStatus").textContent = `❌ Error: ${e.message}`;
         console.error(e);
     }
-})();
+});
 
 // ── TABLE RENDER ────────────────────────────────────────────
 function renderTable() {

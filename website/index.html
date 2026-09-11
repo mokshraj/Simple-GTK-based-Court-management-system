@@ -7,8 +7,9 @@
     <link rel="icon" href="icon.png">
 </head>
 <body>
-    <script src="https://unpkg.com/sql.js@1.10.3/dist/sql-wasm.js"></script>
-    <script src="db.js"></script>
+    <script src="vendor/sql-wasm.js"
+            integrity="sha256-VYpyw6s0FdDm0kPP0j+dYVQ2ANWQVLS3uNo81l9rn9Q="
+            crossorigin="anonymous"></script>
 
     <header>
         <h1>⚖ Court Office Automation System</h1>
@@ -84,31 +85,12 @@
     </footer>
 
     <script>
+        // Navigation handlers (safe to define here, no DB dependency).
         function goToCases() { window.location.href = "cases.html"; }
         function goToSchedule() { window.location.href = "schedule.html"; }
         function goToLawyers()  { window.location.href = "lawyers.html"; }
         function goToJudges()   { window.location.href = "judges.html"; }
-
-        // Boot DB and show live stats
-        initDB().then(db => {
-            document.getElementById('db-status').textContent = '✅ Database connected';
-            document.getElementById('db-status').className = 'db-badge connected';
-
-            const cases     = dbQuery(db, "SELECT COUNT(*) AS c FROM Crime_table")[0].c;
-            const lawyers   = dbQuery(db, "SELECT COUNT(*) AS c FROM Lawyer WHERE Lyr_ID != 1")[0].c;
-            const judges    = dbQuery(db, "SELECT COUNT(*) AS c FROM Judge")[0].c;
-            const schedules = dbQuery(db, "SELECT COUNT(*) AS c FROM case_schedule")[0].c;
-
-            document.getElementById('statCases').textContent     = cases;
-            document.getElementById('statLawyers').textContent   = lawyers;
-            document.getElementById('statJudges').textContent    = judges;
-            document.getElementById('statSchedules').textContent = schedules;
-            document.getElementById('statsBar').style.display    = 'flex';
-
-        }).catch(err => {
-            document.getElementById('db-status').textContent = '❌ Database error: ' + err.message;
-            document.getElementById('db-status').className = 'db-badge error';
-        });
     </script>
+    <script src="db.v2.js"></script>
 </body>
 </html>
