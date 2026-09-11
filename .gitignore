@@ -27,6 +27,7 @@ Cases/
 
 # Library includes
 liberary includes/
+__pycache__/
 
 # Vendor files
 website/vendor/
